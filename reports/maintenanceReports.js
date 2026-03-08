@@ -216,51 +216,11 @@ export class MaintenanceReports {
   }
 
   /**
-   * Завантажує дані з API
+   * Завантажує дані з API (не використовується — статичний деплой без backend)
    */
   async loadDataFromAPI() {
-    try {
-      const API_BASE_URL = window.API_BASE_URL || "";
-      const isFileProtocol = window.location.protocol === "file:";
-      if (isFileProtocol && !API_BASE_URL) {
-        throw new Error("API недоступний через file:// протокол");
-      }
-
-      const url = API_BASE_URL ? `${API_BASE_URL}/api/data` : "/api/data";
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // Перевіряємо, чи відповідь є JSON
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("API повернув не JSON відповідь");
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        this.appData = data.data;
-        this.processedCars = data.processedCars || [];
-        this.maintenanceRegulations =
-          data.data?.regulations || data.regulations || [];
-
-        // Зберігаємо в кеш
-        const CacheManager = window.CacheManager;
-        if (CacheManager) {
-          const cacheData = {
-            ...data.data,
-            processedCars: data.processedCars,
-          };
-          CacheManager.cacheData(cacheData);
-        }
-      }
-    } catch (error) {
-      console.error("Помилка завантаження з API:", error);
-      throw error;
-    }
+    // Статичний Vercel-деплой не має backend API, дані завантажуються в ReportsApp
+    console.warn('[MaintenanceReports] loadDataFromAPI: статичний деплой, пропускаємо');
   }
 
   /**

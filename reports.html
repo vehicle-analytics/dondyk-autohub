@@ -43,251 +43,250 @@
             opacity: 1 !important;
         }
     </style>
-</head>
-<style>
-    .report-table {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-
-    .report-table th,
-    .report-table td {
-        padding: 8px 6px;
-        text-align: center;
-        border-bottom: 1px solid #e5e7eb;
-        vertical-align: middle;
-        font-size: 12px;
-    }
-
-    .report-table th {
-        background-color: #f3f4f6;
-        font-weight: 600;
-        color: #1f2937;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        text-align: center;
-        line-height: 1.3;
-    }
-
-    .report-table th .th-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 3px;
-        min-height: 60px;
-    }
-
-    .report-table th .th-emoji {
-        font-size: 18px;
-        line-height: 1;
-        flex-shrink: 0;
-    }
-
-    .report-table th .th-text {
-        font-size: 11px;
-        line-height: 1.2;
-        white-space: normal;
-        word-break: break-word;
-        text-align: center;
-        max-height: 2.4em;
-        overflow: hidden;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-
-    /* Ширини стовпців - звужені */
-    .report-table th:first-child,
-    .report-table td:first-child {
-        width: 45px;
-        min-width: 45px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(2),
-    .report-table td:nth-child(2) {
-        width: 110px;
-        min-width: 110px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(3),
-    .report-table td:nth-child(3) {
-        width: 100px;
-        min-width: 100px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(4),
-    .report-table td:nth-child(4) {
-        width: 160px;
-        min-width: 160px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(5),
-    .report-table td:nth-child(5) {
-        width: 110px;
-        min-width: 110px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(6),
-    .report-table td:nth-child(6) {
-        width: 130px;
-        min-width: 130px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(7),
-    .report-table td:nth-child(7) {
-        width: 100px;
-        min-width: 100px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(8),
-    .report-table td:nth-child(8) {
-        width: 100px;
-        min-width: 100px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(9),
-    .report-table td:nth-child(9) {
-        width: 130px;
-        min-width: 130px;
-        text-align: center;
-    }
-
-    .report-table th:nth-child(10),
-    .report-table td:nth-child(10) {
-        width: 170px;
-        min-width: 170px;
-        text-align: center;
-    }
-
-    .report-table td {
-        text-align: center;
-        font-size: 12px;
-    }
-
-    /* Спеціальне форматування для числових значень */
-    .report-table td:nth-child(5),
-    .report-table td:nth-child(7) {
-        font-weight: 500;
-    }
-
-    /* Адаптивність для малих екранів */
-    @media (max-width: 1400px) {
-        .report-table th .th-text {
-            font-size: 11px;
+    <style>
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
         }
 
         .report-table th,
         .report-table td {
             padding: 8px 6px;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: middle;
             font-size: 12px;
         }
 
-        .report-table td {
-            font-size: 12px;
+        .report-table th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            color: #1f2937;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            text-align: center;
+            line-height: 1.3;
         }
-    }
 
-    @media (max-width: 1200px) {
+        .report-table th .th-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            min-height: 60px;
+        }
+
         .report-table th .th-emoji {
             font-size: 18px;
+            line-height: 1;
+            flex-shrink: 0;
         }
 
         .report-table th .th-text {
-            font-size: 10px;
-        }
-
-        .report-table th,
-        .report-table td {
-            padding: 6px 4px;
             font-size: 11px;
+            line-height: 1.2;
+            white-space: normal;
+            word-break: break-word;
+            text-align: center;
+            max-height: 2.4em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        /* Ширини стовпців - звужені */
+        .report-table th:first-child,
+        .report-table td:first-child {
+            width: 45px;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(2),
+        .report-table td:nth-child(2) {
+            width: 110px;
+            min-width: 110px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(3),
+        .report-table td:nth-child(3) {
+            width: 100px;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(4),
+        .report-table td:nth-child(4) {
+            width: 160px;
+            min-width: 160px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(5),
+        .report-table td:nth-child(5) {
+            width: 110px;
+            min-width: 110px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(6),
+        .report-table td:nth-child(6) {
+            width: 130px;
+            min-width: 130px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(7),
+        .report-table td:nth-child(7) {
+            width: 100px;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(8),
+        .report-table td:nth-child(8) {
+            width: 100px;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(9),
+        .report-table td:nth-child(9) {
+            width: 130px;
+            min-width: 130px;
+            text-align: center;
+        }
+
+        .report-table th:nth-child(10),
+        .report-table td:nth-child(10) {
+            width: 170px;
+            min-width: 170px;
+            text-align: center;
         }
 
         .report-table td {
-            font-size: 11px;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .report-table th .th-text {
-            font-size: 9px;
+            text-align: center;
+            font-size: 12px;
         }
 
-        .report-table th,
-        .report-table td {
-            padding: 5px 3px;
-            font-size: 10px;
+        /* Спеціальне форматування для числових значень */
+        .report-table td:nth-child(5),
+        .report-table td:nth-child(7) {
+            font-weight: 500;
         }
-    }
 
-    .report-table tbody tr:hover {
-        background-color: #f9fafb;
-    }
+        /* Адаптивність для малих екранів */
+        @media (max-width: 1400px) {
+            .report-table th .th-text {
+                font-size: 11px;
+            }
 
-    .status-urgent {
-        background-color: #fee2e2;
-        color: #991b1b;
-        font-weight: 600;
-    }
+            .report-table th,
+            .report-table td {
+                padding: 8px 6px;
+                font-size: 12px;
+            }
 
-    .status-warning {
-        background-color: #fef3c7;
-        color: #92400e;
-        font-weight: 600;
-    }
+            .report-table td {
+                font-size: 12px;
+            }
+        }
 
-    .status-normal {
-        background-color: #d1fae5;
-        color: #065f46;
-        font-weight: 600;
-    }
+        @media (max-width: 1200px) {
+            .report-table th .th-emoji {
+                font-size: 18px;
+            }
 
-    .status-icon {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 6px;
-    }
+            .report-table th .th-text {
+                font-size: 10px;
+            }
 
-    .status-icon.urgent {
-        background-color: #dc2626;
-    }
+            .report-table th,
+            .report-table td {
+                padding: 6px 4px;
+                font-size: 11px;
+            }
 
-    .status-icon.warning {
-        background-color: #f59e0b;
-    }
+            .report-table td {
+                font-size: 11px;
+            }
+        }
 
-    .status-icon.normal {
-        background-color: #10b981;
-    }
+        @media (max-width: 768px) {
+            .report-table th .th-text {
+                font-size: 9px;
+            }
 
-    /* Стилі для фільтрів */
-    #part-select,
-    #status-filter,
-    #city-filter {
-        color: #1f2937 !important;
-        background-color: #ffffff !important;
-    }
+            .report-table th,
+            .report-table td {
+                padding: 5px 3px;
+                font-size: 10px;
+            }
+        }
 
-    #part-select option,
-    #status-filter option,
-    #city-filter option {
-        color: #1f2937 !important;
-        background-color: #ffffff !important;
-    }
-</style>
+        .report-table tbody tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .status-urgent {
+            background-color: #fee2e2;
+            color: #991b1b;
+            font-weight: 600;
+        }
+
+        .status-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+            font-weight: 600;
+        }
+
+        .status-normal {
+            background-color: #d1fae5;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        .status-icon {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-icon.urgent {
+            background-color: #dc2626;
+        }
+
+        .status-icon.warning {
+            background-color: #f59e0b;
+        }
+
+        .status-icon.normal {
+            background-color: #10b981;
+        }
+
+        /* Стилі для фільтрів */
+        #part-select,
+        #status-filter,
+        #city-filter {
+            color: #1f2937 !important;
+            background-color: #ffffff !important;
+        }
+
+        #part-select option,
+        #status-filter option,
+        #city-filter option {
+            color: #1f2937 !important;
+            background-color: #ffffff !important;
+        }
+    </style>
 </head>
 
 <body>

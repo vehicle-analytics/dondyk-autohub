@@ -265,83 +265,8 @@ class CarAnalyticsApp {
    * Завантажує дані з backend API
    */
   async fetchDataFromAPI() {
-    try {
-      this.updateLoadingProgress(30);
-
-      const API_BASE_URL = ""; // window.API_BASE_URL not needed in ESM usually if handled via config or env
-      const isFileProtocol = window.location.protocol === "file:";
-      if (isFileProtocol && !API_BASE_URL) {
-        throw new Error("API недоступний через file:// протокол");
-      }
-
-      // Додаємо timeout для запиту (15 секунд замість 10 для більших обсягів даних)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      this.updateLoadingProgress(40);
-      const url = API_BASE_URL ? `${API_BASE_URL}/api/data` : "/api/data";
-      const response = await fetch(url, {
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      this.updateLoadingProgress(50);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      this.updateLoadingProgress(60);
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || "Помилка отримання даних з API");
-      }
-
-      this.updateLoadingProgress(70);
-
-      this.updateLoadingProgress(70);
-
-      const getComparableData = (data) => JSON.stringify({
-        carsInfo: data?.carsInfo || {},
-        records: data?.records || [],
-        regulations: data?.regulations || []
-      });
-      const oldDataStr = getComparableData(this.appData);
-
-      // Зберігаємо дані
-      this.appData = result.data;
-      this.maintenanceRegulations = result.data.regulations || [];
-      this.processedCars = result.processedCars || [];
-
-      const newDataStr = getComparableData(this.appData);
-      const isDataChanged = oldDataStr !== newDataStr;
-
-      // Зберігаємо в кеш разом з processedCars
-      const cacheData = {
-        ...result.data,
-        processedCars: result.processedCars,
-      };
-      this.cacheData(cacheData);
-
-      this.updateLoadingProgress(80);
-      this.updateCacheInfo();
-
-      return isDataChanged;
-    } catch (error) {
-      if (error.name === "AbortError") {
-        console.warn(
-          "⚠️ Timeout при завантаженні з API (10 сек), використовуємо fallback",
-        );
-      } else {
-        console.warn(
-          "⚠️ Помилка завантаження з API, використовуємо fallback:",
-          error.message,
-        );
-      }
-      // Fallback на пряму обробку, якщо API недоступний
-      return await this.fetchDataFromSheets();
-    }
+    // Статичний Vercel-деплой не має backend API — одразу йдемо в Google Sheets
+    return await this.fetchDataFromSheets();
   }
 
   /**

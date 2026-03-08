@@ -82,16 +82,8 @@ class ReportsApp {
     }
 
     async loadDataFromAPI() {
-        const url = "/api/data";
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        if (data.success) {
-            this.appData = data.data;
-            this.processedCars = data.processedCars || [];
-            this.maintenanceRegulations = data.data?.regulations || data.regulations || [];
-            CacheManager.cacheData({ ...data.data, processedCars: data.processedCars });
-        }
+        // Статичний Vercel-деплой не має backend API — одразу йдемо в Google Sheets
+        await this.fetchDataFromSheets();
     }
 
     async fetchDataFromSheets() {

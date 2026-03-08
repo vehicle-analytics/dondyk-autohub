@@ -1,3 +1,15 @@
+import { DataProcessor } from './data/dataProcessor.js';
+import { Formatters } from './utils/formatters.js';
+import { CacheManager } from './cache/cacheManager.js';
+import { BreakdownFrequencyAnalysis } from './breakdown-frequency-analysis.js';
+import { CarWashRecommendations } from './car-wash-recommendations.js';
+import { PartsPurchaseForecast } from './parts-purchase-forecast.js';
+import { CarRecommendations } from './car-recommendations.js';
+import { MaintenanceForecast } from './maintenance-forecast.js';
+import { CarFilters } from './filters/carFilters.js';
+import { CarProcessor } from './processing/carProcessor.js';
+import { CONFIG, CONSTANTS } from './config/appConfig.js';
+
 class CarAnalyticsApp {
   constructor() {
     this.appData = null;
@@ -6,27 +18,12 @@ class CarAnalyticsApp {
     this.filteredCars = null;
     this.maintenanceRegulations = [];
 
-    // === ДОДАЄМО ОБ'ЄКТ КАТЕГОРІЙ ===
-    // Використовуємо зовнішній файл або створюємо резервну копію
-    this.expenseCategories =
-      window.EXPENSE_CATEGORIES_CONFIG || this.getDefaultCategories();
-
     // === ІНІЦІАЛІЗУЄМО МОДУЛІ ===
-    this.breakdownAnalysis = window.BreakdownFrequencyAnalysis
-      ? new window.BreakdownFrequencyAnalysis()
-      : null;
-    this.carWashChecker = window.CarWashRecommendations
-      ? new window.CarWashRecommendations()
-      : null;
-    this.partsForecast = window.PartsPurchaseForecast
-      ? new window.PartsPurchaseForecast()
-      : null;
-    this.carRecommendations = window.CarRecommendations
-      ? new window.CarRecommendations()
-      : null;
-    this.maintenanceForecastModule = window.MaintenanceForecast
-      ? new window.MaintenanceForecast()
-      : null;
+    this.breakdownAnalysis = new BreakdownFrequencyAnalysis();
+    this.carWashChecker = new CarWashRecommendations();
+    this.partsForecast = new PartsPurchaseForecast();
+    this.carRecommendations = new CarRecommendations();
+    this.maintenanceForecastModule = new MaintenanceForecast();
 
     this.state = {
       searchTerm: "",
@@ -271,7 +268,7 @@ class CarAnalyticsApp {
     try {
       this.updateLoadingProgress(30);
 
-      const API_BASE_URL = window.API_BASE_URL || "";
+      const API_BASE_URL = ""; // window.API_BASE_URL not needed in ESM usually if handled via config or env
       const isFileProtocol = window.location.protocol === "file:";
       if (isFileProtocol && !API_BASE_URL) {
         throw new Error("API недоступний через file:// протокол");
@@ -492,7 +489,7 @@ class CarAnalyticsApp {
 
       const refreshTime = new Date(today);
       const [hours, minutes] =
-        window.CONFIG.REFRESH_TIME.split(":").map(Number);
+        CONFIG.REFRESH_TIME.split(":").map(Number);
       refreshTime.setHours(hours, minutes, 0, 0);
 
       if (now >= refreshTime) {
@@ -575,7 +572,7 @@ class CarAnalyticsApp {
       this.processedCars.length > 0
     ) {
       const data = this.processedCars;
-      const filteredData = this.filterCars(data);
+      const filteredData = CarFilters.filterCars(data);
       const cities = this.getCities(data);
       const stats = this.calculateStats(data);
 
@@ -600,7 +597,7 @@ class CarAnalyticsApp {
         this.updateLoadingProgress(60);
         await new Promise((resolve) => {
           setTimeout(() => {
-            this.processedCars = this.processCarData();
+            this.processedCars = CarProcessor.processCarData();
             try {
               if (this.appData) {
                 this.cacheData({
@@ -618,7 +615,7 @@ class CarAnalyticsApp {
       }
 
       const data = this.processedCars;
-      const filteredData = this.filterCars(data);
+      const filteredData = CarFilters.filterCars(data);
       const cities = this.getCities(data);
       // Розраховуємо статистику на основі всіх даних, використовуючи ту саму логіку, що і фільтр
       const stats = this.calculateStats(data);
@@ -764,7 +761,7 @@ class CarAnalyticsApp {
     // Розраховуємо час до наступного оновлення
     const now = new Date();
     const refreshTime = new Date();
-    const [hours, minutes] = (window.CONFIG.REFRESH_TIME || "06:00")
+    const [hours, minutes] = (CONFIG.REFRESH_TIME || "06:00")
       .split(":")
       .map(Number);
     refreshTime.setHours(hours, minutes, 0, 0);
@@ -777,7 +774,7 @@ class CarAnalyticsApp {
     const minutesUntil = Math.floor(
       ((refreshTime - now) % (1000 * 60 * 60)) / (1000 * 60),
     );
-    const nextRefreshInfo = `Наступне оновлення: ${window.CONFIG.REFRESH_TIME} (через ${hoursUntil}г ${minutesUntil}хв)`;
+    const nextRefreshInfo = `Наступне оновлення: ${CONFIG.REFRESH_TIME} (через ${hoursUntil}г ${minutesUntil}хв)`;
 
     const formattedDate = formatDateForFooter(this.appData.currentDate);
     const totalRecords = this.appData._meta?.totalRecords || 0;
@@ -796,7 +793,7 @@ class CarAnalyticsApp {
     // Використовуємо requestAnimationFrame для асинхронного рендерингу
     requestAnimationFrame(() => {
       if (!this.processedCars) {
-        this.processedCars = this.processCarData();
+        this.processedCars = CarProcessor.processCarData();
         // При першому розрахунку також оновлюємо кеш processedCars
         try {
           if (this.appData) {
@@ -2844,7 +2841,7 @@ class CarAnalyticsApp {
       historySearchTerm,
       carDetailTab = "parts",
     } = this.state;
-    let displayHistory = this.filterCarHistory(
+    let displayHistory = CarFilters.filterCarHistory(
       car.history,
       selectedHistoryPartFilter,
       historySearchTerm,
@@ -3745,7 +3742,7 @@ class CarAnalyticsApp {
     );
 
     // Діагностичне логування тільки якщо DEBUG включений
-    const DEBUG = window.CONFIG && window.CONFIG.DEBUG;
+    const DEBUG = window.CONFIG && CONFIG.DEBUG;
     if (DEBUG) {
       const normalizedLicense = car.license.replace(/\s+/g, "").toUpperCase();
       if (
@@ -5253,7 +5250,7 @@ class CarAnalyticsApp {
     if (existingMenu) existingMenu.remove();
 
     if (!this.processedCars) {
-      this.processedCars = this.processCarData();
+      this.processedCars = CarProcessor.processCarData();
     }
 
     // Отримуємо список унікальних марок
@@ -5457,7 +5454,7 @@ class CarAnalyticsApp {
       await this.fetchDataFromSheets();
 
       // Діагностичне логування тільки якщо DEBUG включений
-      const DEBUG = window.CONFIG && window.CONFIG.DEBUG;
+      const DEBUG = window.CONFIG && CONFIG.DEBUG;
       if (DEBUG) {
         console.log(
           "📊 Після оновлення знайдено регламентів:",

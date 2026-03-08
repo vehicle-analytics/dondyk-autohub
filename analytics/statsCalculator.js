@@ -2,7 +2,7 @@
  * Калькулятор статистики та аналітики
  */
 
-class StatsCalculator {
+export class StatsCalculator {
   /**
    * Розраховує health score для автомобіля (покращений алгоритм)
    * @param {Object} car - Об'єкт автомобіля
@@ -1183,4 +1183,3 @@ class StatsCalculator {
 }
 
 // Експортуємо для використання
-window.StatsCalculator = StatsCalculator;

@@ -2,7 +2,7 @@
  * Утиліти для форматування та парсингу даних
  */
 
-class Formatters {
+export class Formatters {
   /**
    * Парсить число з різних форматів
    */
@@ -233,6 +233,3 @@ class Formatters {
     return null;
   }
 }
-
-// Експортуємо для використання
-window.Formatters = Formatters;

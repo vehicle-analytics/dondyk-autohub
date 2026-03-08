@@ -1,8 +1,7 @@
-/**
- * Обробка даних автомобілів та запчастин
- */
+import { Formatters } from '../utils/formatters.js';
+import { CONSTANTS, CONFIG } from '../config/appConfig.js';
 
-class CarProcessor {
+export class CarProcessor {
   /**
    * Обробляє дані автомобілів
    */
@@ -100,9 +99,8 @@ class CarProcessor {
         if (matched) {
           const existingPart = car.parts[partName];
 
-          // Використовуємо глобальний Formatters для парсингу дат
-          const parseDateFunc =
-            (window.Formatters && window.Formatters.parseDate) ||
+          // Використовуємо Formatters для парсингу дат
+          const parseDateFunc = Formatters.parseDate ||
             ((dateString) => {
               if (!dateString) return null;
               const date = new Date(dateString);
@@ -297,7 +295,7 @@ class CarProcessor {
 
     // Діагностичне логування (відключено для продуктивності)
     const normalizedLicense = normalizeLicense(license);
-    const DEBUG = window.CONFIG && window.CONFIG.DEBUG;
+    const DEBUG = CONFIG && CONFIG.DEBUG;
     const isDebugCar =
       false &&
       DEBUG &&
@@ -895,6 +893,3 @@ class CarProcessor {
     }
   }
 }
-
-// Експортуємо для використання
-window.CarProcessor = CarProcessor;

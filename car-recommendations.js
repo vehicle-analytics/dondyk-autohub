@@ -3,7 +3,7 @@
  * Генерує рекомендації на основі стану запчастин та історії обслуговування
  */
 
-class CarRecommendations {
+export class CarRecommendations {
   constructor() {
     // Визначаємо групи запчастин
     this.brakeParts = [
@@ -287,7 +287,7 @@ class CarRecommendations {
       (car.parts["Профілактика направляючих супортів 🛠️"].status ===
         "critical" ||
         car.parts["Профілактика направляючих супортів 🛠️"].status ===
-          "warning");
+        "warning");
 
     const hasSuspensionDiagnostic =
       car.parts["Діагностика ходової 🔍"] &&
@@ -1354,11 +1354,11 @@ class CarRecommendations {
                 <!-- Recommendations Cards -->
                 <div class="recommendation-cards-container">
                     ${recommendations
-                      .map((rec, index) => {
-                        const parsed = parseRecommendation(rec);
-                        const priorityInfo = getPriorityInfo(rec, parsed);
+        .map((rec, index) => {
+          const parsed = parseRecommendation(rec);
+          const priorityInfo = getPriorityInfo(rec, parsed);
 
-                        return `
+          return `
                         <div class="recommendation-card ${priorityInfo.borderColor} ${priorityInfo.bgColor}" style="animation-delay: ${index * 0.1}s">
                             <!-- Card Header -->
                             <div class="recommendation-card-header">
@@ -1373,24 +1373,22 @@ class CarRecommendations {
                                 </div>
                                 
                                 <!-- Priority Badge -->
-                                ${
-                                  parsed.hasUrgent || parsed.needsReplacement
-                                    ? `
+                                ${parsed.hasUrgent || parsed.needsReplacement
+              ? `
                                     <div class="recommendation-urgent-badge">
                                         <span class="recommendation-urgent-icon">⚠️</span>
                                         <span class="recommendation-urgent-text">Терміново</span>
                                     </div>
                                 `
-                                    : ""
-                                }
+              : ""
+            }
                             </div>
                             
                             <!-- Card Body -->
                             <div class="recommendation-card-body">
                                 <!-- Regulation Badge -->
-                                ${
-                                  parsed.regulation
-                                    ? `
+                                ${parsed.regulation
+              ? `
                                     <div class="recommendation-badge-group">
                                         <div class="recommendation-badge recommendation-badge-regulation">
                                             <span class="recommendation-badge-icon">📋</span>
@@ -1399,13 +1397,12 @@ class CarRecommendations {
                                         </div>
                                     </div>
                                 `
-                                    : ""
-                                }
+              : ""
+            }
                                 
                                 <!-- Frequency Badge -->
-                                ${
-                                  parsed.frequency
-                                    ? `
+                                ${parsed.frequency
+              ? `
                                     <div class="recommendation-badge-group">
                                         <div class="recommendation-badge recommendation-badge-frequency">
                                             <span class="recommendation-badge-icon">🔄</span>
@@ -1413,13 +1410,12 @@ class CarRecommendations {
                                         </div>
                                     </div>
                                 `
-                                    : ""
-                                }
+              : ""
+            }
                                 
                                 <!-- Manufacturers Badge -->
-                                ${
-                                  parsed.manufacturers
-                                    ? `
+                                ${parsed.manufacturers
+              ? `
                                     <div class="recommendation-badge-group">
                                         <div class="recommendation-badge recommendation-badge-manufacturers">
                                             <span class="recommendation-badge-icon">🏭</span>
@@ -1428,30 +1424,26 @@ class CarRecommendations {
                                         </div>
                                     </div>
                                 `
-                                    : ""
-                                }
+              : ""
+            }
                                 
                                 <!-- Details -->
-                                ${
-                                  parsed.details
-                                    ? `
+                                ${parsed.details
+              ? `
                                     <div class="recommendation-details">
                                         <p class="recommendation-details-text">${parsed.details}</p>
                                     </div>
                                 `
-                                    : ""
-                                }
+              : ""
+            }
                             </div>
                         </div>
                     `;
-                      })
-                      .join("")}
+        })
+        .join("")}
                 </div>
             </div>
         `;
   }
 }
-
-// Експортуємо для використання
-window.CarRecommendations = CarRecommendations;
 // Car recommendations module loaded

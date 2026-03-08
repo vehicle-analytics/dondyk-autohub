@@ -1,11 +1,8 @@
-/**
- * 📊 Аналіз частоти поломок по категоріях
- * Показує які системи автомобіля найчастіше виходять з ладу
- */
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORIES_UTILS } from './expense-categories.js';
 
-class BreakdownFrequencyAnalysis {
+export class BreakdownFrequencyAnalysis {
   constructor() {
-    this.expenseCategories = window.EXPENSE_CATEGORIES_CONFIG || {};
+    this.expenseCategories = EXPENSE_CATEGORIES;
   }
 
   /**
@@ -101,15 +98,15 @@ class BreakdownFrequencyAnalysis {
                 </h4>
                 <div class="space-y-3">
                     ${sortedCategories
-                      .map(([category, count]) => {
-                        const percentage = (
-                          (count / stats.totalBreakdowns) *
-                          100
-                        ).toFixed(1);
-                        const barWidth =
-                          maxFrequency > 0 ? (count / maxFrequency) * 100 : 0;
+        .map(([category, count]) => {
+          const percentage = (
+            (count / stats.totalBreakdowns) *
+            100
+          ).toFixed(1);
+          const barWidth =
+            maxFrequency > 0 ? (count / maxFrequency) * 100 : 0;
 
-                        return `
+          return `
                             <div class="space-y-1">
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-700 font-medium">${category}</span>
@@ -124,8 +121,8 @@ class BreakdownFrequencyAnalysis {
                                 </div>
                             </div>
                         `;
-                      })
-                      .join("")}
+        })
+        .join("")}
                 </div>
                 <div class="mt-3 pt-3 border-t border-gray-200">
                     <div class="flex justify-between items-center text-sm">
@@ -143,11 +140,8 @@ class BreakdownFrequencyAnalysis {
    * @returns {string} Назва категорії
    */
   detectExpenseCategory(description) {
-    if (
-      window.EXPENSE_CATEGORIES_UTILS &&
-      window.EXPENSE_CATEGORIES_UTILS.findCategory
-    ) {
-      return window.EXPENSE_CATEGORIES_UTILS.findCategory(description);
+    if (EXPENSE_CATEGORIES_UTILS && EXPENSE_CATEGORIES_UTILS.findCategory) {
+      return EXPENSE_CATEGORIES_UTILS.findCategory(description);
     }
 
     // Fallback метод
@@ -194,7 +188,3 @@ class BreakdownFrequencyAnalysis {
     }
   }
 }
-
-// Експортуємо для використання
-window.BreakdownFrequencyAnalysis = BreakdownFrequencyAnalysis;
-// Breakdown frequency analysis module loaded

@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ПОВНІСТЮ ВИДАЛЯЄМО ТЕМНУ ТЕМУ */
 :root {
     color-scheme: light;

@@ -2,7 +2,7 @@
  * Менеджер кешування даних
  */
 
-class CacheManager {
+export class CacheManager {
   /**
    * Отримує кешовані дані
    */
@@ -126,6 +126,3 @@ class CacheManager {
     }
   }
 }
-
-// Експортуємо для використання
-window.CacheManager = CacheManager;

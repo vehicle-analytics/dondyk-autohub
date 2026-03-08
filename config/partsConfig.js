@@ -828,6 +828,4 @@ const PARTS_CONFIG = {
 };
 
 // Export for use in other files
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { PARTS_CONFIG };
-}
+export { PARTS_CONFIG };

@@ -1,8 +1,7 @@
-/**
- * Фільтрація автомобілів та історії
- */
+import { CONSTANTS } from '../config/appConfig.js';
+import { createFlexiblePatternsCached as createFlexiblePatterns } from '../expense-categories.js';
 
-class CarFilters {
+export class CarFilters {
   /**
    * Фільтрує список автомобілів
    */
@@ -168,6 +167,3 @@ class CarFilters {
     return filtered;
   }
 }
-
-// Експортуємо для використання
-window.CarFilters = CarFilters;

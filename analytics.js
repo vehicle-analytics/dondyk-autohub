@@ -1,3 +1,10 @@
+import { CacheManager } from './cache/cacheManager.js';
+import { DataProcessor } from './data/dataProcessor.js';
+import { Formatters } from './utils/formatters.js';
+import { CarProcessor } from './processing/carProcessor.js';
+import { StatsCalculator } from './analytics/statsCalculator.js';
+import { CONFIG, CONSTANTS } from './config/appConfig.js';
+
 class AnalyticsApp {
   constructor() {
     this.appData = null;
@@ -25,35 +32,8 @@ class AnalyticsApp {
   }
 
   async waitForModules() {
-    const maxAttempts = 50;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      if (
-        window.CacheManager &&
-        window.DataProcessor &&
-        window.Formatters &&
-        window.CarProcessor &&
-        window.StatsCalculator
-      ) {
-        console.log("✅ Всі модулі завантажено");
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      attempts++;
-    }
-
-    if (
-      !window.CacheManager ||
-      !window.DataProcessor ||
-      !window.Formatters ||
-      !window.CarProcessor ||
-      !window.StatsCalculator
-    ) {
-      throw new Error(
-        "Не вдалося завантажити необхідні модулі. Перевірте підключення скриптів.",
-      );
-    }
+    // В ESM модулі завантажуються гарантовано, якщо імпортовані
+    return;
   }
 
   setupEventListeners() {
@@ -170,11 +150,11 @@ class AnalyticsApp {
     if (!window.CacheManager) {
       throw new Error("CacheManager не знайдено");
     }
-    return window.CacheManager.getCachedData();
+    return CacheManager.getCachedData();
   }
 
   async fetchDataFromSheets() {
-    const config = window.CONFIG;
+    const config = CONFIG;
     const { SPREADSHEET_ID, SHEETS, API_KEY } = config;
 
     const [scheduleData, historyData, regulationsData, photoAssessmentData] =
@@ -225,14 +205,14 @@ class AnalyticsApp {
       throw new Error("Необхідні модулі не завантажені");
     }
 
-    const result = window.DataProcessor.processData(
+    const result = DataProcessor.processData(
       scheduleData,
       historyData,
       regulationsData,
       photoAssessmentData,
-      (value) => window.Formatters.parseNumber(value),
-      (dateString) => window.Formatters.parseDate(dateString),
-      (dateString) => window.Formatters.formatDate(dateString),
+      (value) => Formatters.parseNumber(value),
+      (dateString) => Formatters.parseDate(dateString),
+      (dateString) => Formatters.formatDate(dateString),
     );
 
     this.appData = result.appData;
@@ -243,7 +223,7 @@ class AnalyticsApp {
     if (!window.CacheManager) {
       throw new Error("CacheManager не знайдено");
     }
-    window.CacheManager.cacheData(data);
+    CacheManager.cacheData(data);
   }
 
   async processCars() {
@@ -256,7 +236,7 @@ class AnalyticsApp {
       throw new Error("CarProcessor не знайдено");
     }
 
-    this.processedCars = window.CarProcessor.processCarData(
+    this.processedCars = CarProcessor.processCarData(
       this.appData,
       (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
         this.getPartStatus(
@@ -274,7 +254,7 @@ class AnalyticsApp {
 
   findRegulationForCar(license, model, year, partName) {
     if (!window.CarProcessor) return null;
-    return window.CarProcessor.findRegulationForCar(
+    return CarProcessor.findRegulationForCar(
       license,
       model,
       year,
@@ -285,7 +265,7 @@ class AnalyticsApp {
 
   getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license) {
     if (!window.CarProcessor) return "good";
-    return window.CarProcessor.getPartStatus(
+    return CarProcessor.getPartStatus(
       partName,
       mileageDiff,
       daysDiff,
@@ -294,7 +274,7 @@ class AnalyticsApp {
       license,
       this.maintenanceRegulations,
       (license, model, year, partName, maintenanceRegulations) =>
-        window.CarProcessor.findRegulationForCar(
+        CarProcessor.findRegulationForCar(
           license,
           model,
           year,
@@ -738,36 +718,36 @@ class AnalyticsApp {
     const expensesTrend =
       previousExpenses > 0
         ? (
-            ((totalExpenses - previousExpenses) / previousExpenses) *
-            100
-          ).toFixed(1)
+          ((totalExpenses - previousExpenses) / previousExpenses) *
+          100
+        ).toFixed(1)
         : 0;
 
     const previousRepairCount = this.countUniqueRepairs(previousPeriod);
     const repairTrend =
       previousRepairCount > 0
         ? (
-            ((repairCount - previousRepairCount) / previousRepairCount) *
-            100
-          ).toFixed(1)
+          ((repairCount - previousRepairCount) / previousRepairCount) *
+          100
+        ).toFixed(1)
         : 0;
 
     const previousAvgMileage = this.calculateAvgMileage(previousPeriod);
     const mileageTrend =
       previousAvgMileage > 0
         ? (
-            ((avgMileage - previousAvgMileage) / previousAvgMileage) *
-            100
-          ).toFixed(1)
+          ((avgMileage - previousAvgMileage) / previousAvgMileage) *
+          100
+        ).toFixed(1)
         : 0;
 
     const previousRequestCount = previousPeriod.length; // Заявки рахуються звичайно
     const requestTrend =
       previousRequestCount > 0
         ? (
-            ((requestCount - previousRequestCount) / previousRequestCount) *
-            100
-          ).toFixed(1)
+          ((requestCount - previousRequestCount) / previousRequestCount) *
+          100
+        ).toFixed(1)
         : 0;
 
     const html = `
@@ -919,7 +899,7 @@ class AnalyticsApp {
         value =
           dayCounts.length > 0
             ? dayCounts.reduce((sum, count) => sum + count, 0) /
-              dayCounts.length
+            dayCounts.length
             : 0;
       } else if (period === "week") {
         // Групуємо записи по тижнях і рахуємо унікальні ремонти за тиждень
@@ -941,7 +921,7 @@ class AnalyticsApp {
         value =
           weekCounts.length > 0
             ? weekCounts.reduce((sum, count) => sum + count, 0) /
-              weekCounts.length
+            weekCounts.length
             : 0;
       } else if (period === "month") {
         // Групуємо записи по місяцях і рахуємо унікальні ремонти за місяць
@@ -962,7 +942,7 @@ class AnalyticsApp {
         value =
           monthCounts.length > 0
             ? monthCounts.reduce((sum, count) => sum + count, 0) /
-              monthCounts.length
+            monthCounts.length
             : 0;
       } else if (period === "quarter") {
         // Групуємо записи по кварталах і рахуємо унікальні ремонти за квартал
@@ -984,7 +964,7 @@ class AnalyticsApp {
         value =
           quarterCounts.length > 0
             ? quarterCounts.reduce((sum, count) => sum + count, 0) /
-              quarterCounts.length
+            quarterCounts.length
             : 0;
       } else if (period === "halfyear") {
         // Групуємо записи по півріччях і рахуємо унікальні ремонти за півроку
@@ -1006,7 +986,7 @@ class AnalyticsApp {
         value =
           halfYearCounts.length > 0
             ? halfYearCounts.reduce((sum, count) => sum + count, 0) /
-              halfYearCounts.length
+            halfYearCounts.length
             : 0;
       }
 
@@ -1070,7 +1050,7 @@ class AnalyticsApp {
       value =
         weekCounts.length > 0
           ? weekCounts.reduce((sum, count) => sum + count, 0) /
-            weekCounts.length
+          weekCounts.length
           : 0;
     } else if (period === "month") {
       // Групуємо записи по місяцях і рахуємо унікальні ремонти за місяць
@@ -1091,7 +1071,7 @@ class AnalyticsApp {
       value =
         monthCounts.length > 0
           ? monthCounts.reduce((sum, count) => sum + count, 0) /
-            monthCounts.length
+          monthCounts.length
           : 0;
     } else if (period === "quarter") {
       // Групуємо записи по кварталах і рахуємо унікальні ремонти за квартал
@@ -1113,7 +1093,7 @@ class AnalyticsApp {
       value =
         quarterCounts.length > 0
           ? quarterCounts.reduce((sum, count) => sum + count, 0) /
-            quarterCounts.length
+          quarterCounts.length
           : 0;
     } else if (period === "halfyear") {
       // Групуємо записи по півріччях і рахуємо унікальні ремонти за півроку
@@ -1135,7 +1115,7 @@ class AnalyticsApp {
       value =
         halfYearCounts.length > 0
           ? halfYearCounts.reduce((sum, count) => sum + count, 0) /
-            halfYearCounts.length
+          halfYearCounts.length
           : 0;
     }
 
@@ -2025,8 +2005,8 @@ class AnalyticsApp {
                             </thead>
                             <tbody>
                                 ${costPerKm
-                                  .map(
-                                    (car, idx) => `
+        .map(
+          (car, idx) => `
                                     <tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="window.location.href='index.html?car=${car.license}'">
                                         <td class="px-2 py-2">${idx + 1}</td>
                                         <td class="px-2 py-2 font-medium">${car.license}</td>
@@ -2035,8 +2015,8 @@ class AnalyticsApp {
                                         </td>
                                     </tr>
                                 `,
-                                  )
-                                  .join("")}
+        )
+        .join("")}
                             </tbody>
                         </table>
                     </div>
@@ -2054,16 +2034,16 @@ class AnalyticsApp {
                             </thead>
                             <tbody>
                                 ${topProblematic
-                                  .map(
-                                    (car, idx) => `
+        .map(
+          (car, idx) => `
                                     <tr class="border-b hover:bg-gray-50">
                                         <td class="px-2 py-2">${idx + 1}</td>
                                         <td class="px-2 py-2 font-medium">${car.license}</td>
                                         <td class="px-2 py-2 text-right font-bold text-red-600">${car.count}</td>
                                     </tr>
                                 `,
-                                  )
-                                  .join("")}
+        )
+        .join("")}
                             </tbody>
                         </table>
                     </div>
@@ -2081,16 +2061,16 @@ class AnalyticsApp {
                             </thead>
                             <tbody>
                                 ${topExpensive
-                                  .map(
-                                    (record, idx) => `
+        .map(
+          (record, idx) => `
                                     <tr class="border-b hover:bg-gray-50">
                                         <td class="px-2 py-2">${idx + 1}</td>
                                         <td class="px-2 py-2 font-medium text-xs">${record.car || "Невідомо"}</td>
                                         <td class="px-2 py-2 text-right font-bold text-orange-600">${this.formatCurrency(record.totalWithVAT || 0)}</td>
                                     </tr>
                                 `,
-                                  )
-                                  .join("")}
+        )
+        .join("")}
                             </tbody>
                         </table>
                     </div>
@@ -2276,11 +2256,11 @@ class AnalyticsApp {
     const avgMonthlyExpense =
       records.length > 0
         ? records.reduce((sum, r) => sum + (r.totalWithVAT || 0), 0) /
-          (this.filteredData.periodRange
-            ? (this.filteredData.periodRange.end.getTime() -
-                this.filteredData.periodRange.start.getTime()) /
-              (30 * 24 * 60 * 60 * 1000)
-            : 1)
+        (this.filteredData.periodRange
+          ? (this.filteredData.periodRange.end.getTime() -
+            this.filteredData.periodRange.start.getTime()) /
+          (30 * 24 * 60 * 60 * 1000)
+          : 1)
         : 0;
     return Math.round(avgMonthlyExpense * months);
   }
@@ -2356,4 +2336,5 @@ class AnalyticsApp {
 // Ініціалізація при завантаженні сторінки
 document.addEventListener("DOMContentLoaded", () => {
   window.analyticsApp = new AnalyticsApp();
+  window.app = window.analyticsApp;
 });

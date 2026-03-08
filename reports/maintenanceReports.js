@@ -1,8 +1,6 @@
-/**
- * Модуль для генерації звітів по обслуговуванню
- */
+import { CarProcessor } from '../processing/carProcessor.js';
 
-class MaintenanceReports {
+export class MaintenanceReports {
   constructor() {
     this.appData = null;
     this.processedCars = null;
@@ -167,8 +165,8 @@ class MaintenanceReports {
     }
 
     // Використовуємо CarProcessor якщо доступний
-    if (window.CarProcessor) {
-      return window.CarProcessor.findRegulationForCar(
+    if (CarProcessor) {
+      return CarProcessor.findRegulationForCar(
         license,
         model,
         year,
@@ -196,8 +194,9 @@ class MaintenanceReports {
     // Дані завантажуються в ReportsApp, тому тут просто перевіряємо кеш як fallback
     try {
       // Спочатку перевіряємо кеш
-      if (window.CacheManager) {
-        const cached = window.CacheManager.getCachedData();
+      const CacheManager = window.CacheManager; // Fallback for now or I should import it
+      if (CacheManager) {
+        const cached = CacheManager.getCachedData();
         if (
           cached &&
           cached.carsInfo &&
@@ -249,12 +248,13 @@ class MaintenanceReports {
           data.data?.regulations || data.regulations || [];
 
         // Зберігаємо в кеш
-        if (window.CacheManager) {
+        const CacheManager = window.CacheManager;
+        if (CacheManager) {
           const cacheData = {
             ...data.data,
             processedCars: data.processedCars,
           };
-          window.CacheManager.cacheData(cacheData);
+          CacheManager.cacheData(cacheData);
         }
       }
     } catch (error) {
@@ -1282,8 +1282,8 @@ class MaintenanceReports {
                     </thead>
                     <tbody>
                         ${reportData
-                          .map(
-                            (item, index) => `
+        .map(
+          (item, index) => `
                             <tr class="${item.status}">
                                 <td>${index + 1}</td>
                                 <td>${item.city}</td>
@@ -1297,8 +1297,8 @@ class MaintenanceReports {
                                 <td>${item.statusText}</td>
                             </tr>
                         `,
-                          )
-                          .join("")}
+        )
+        .join("")}
                     </tbody>
                 </table>
             </body>
@@ -1312,7 +1312,4 @@ class MaintenanceReports {
   }
 }
 
-// Експортуємо для використання
-if (typeof window !== "undefined") {
-  window.MaintenanceReports = MaintenanceReports;
-}
+

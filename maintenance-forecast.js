@@ -3,7 +3,7 @@
  * Розраховує приблизні терміни заміни запчастин
  */
 
-class MaintenanceForecast {
+export class MaintenanceForecast {
   constructor() {
     this.excludedParts = [
       "Комплексна діагностика 🔍",
@@ -652,11 +652,11 @@ class MaintenanceForecast {
 
         const regulation = findRegulationForCar
           ? findRegulationForCar(
-              car.license,
-              car.model,
-              car.year,
-              forecast.part,
-            )
+            car.license,
+            car.model,
+            car.year,
+            forecast.part,
+          )
           : null;
         const lastDate = part.date && formatDate ? formatDate(part.date) : null;
         const lastMileage =
@@ -804,8 +804,8 @@ class MaintenanceForecast {
         const avgMonthlyMileage =
           car.currentMileage && car.year
             ? car.currentMileage /
-              ((new Date() - new Date(carYearNumForUntil, 0, 1)) /
-                (1000 * 60 * 60 * 24 * 30))
+            ((new Date() - new Date(carYearNumForUntil, 0, 1)) /
+              (1000 * 60 * 60 * 24 * 30))
             : 2000;
         const monthsUntil = isTimeBased
           ? Math.max(0, remainingMonths)
@@ -988,29 +988,29 @@ class MaintenanceForecast {
                     <!-- Accordion Container -->
                     <div class="space-y-3">
                         ${displayForecasts
-                          .map((forecast, index) => {
-                            const details = getForecastDetails(forecast);
-                            // Для запчастин, які потребують діагностики, завжди використовуємо середній статус
-                            const finalStatus = details.requiresDiagnostics
-                              ? "warning"
-                              : details.status;
-                            const statusClass = getStatusClass({
-                              ...forecast,
-                              status: finalStatus,
-                            });
-                            const statusColor = getStatusColor({
-                              ...forecast,
-                              status: finalStatus,
-                            });
-                            const icon = getPartIcon(forecast.part);
-                            const partName = forecast.part
-                              .replace(
-                                /[🛢️📐🔧💻🕯️🔍🔥⚙️💿🛑🛠️⚪🔗🔩🔋⚡]/g,
-                                "",
-                              )
-                              .trim();
+          .map((forecast, index) => {
+            const details = getForecastDetails(forecast);
+            // Для запчастин, які потребують діагностики, завжди використовуємо середній статус
+            const finalStatus = details.requiresDiagnostics
+              ? "warning"
+              : details.status;
+            const statusClass = getStatusClass({
+              ...forecast,
+              status: finalStatus,
+            });
+            const statusColor = getStatusColor({
+              ...forecast,
+              status: finalStatus,
+            });
+            const icon = getPartIcon(forecast.part);
+            const partName = forecast.part
+              .replace(
+                /[🛢️📐🔧💻🕯️🔍🔥⚙️💿🛑🛠️⚪🔗🔩🔋⚡]/g,
+                "",
+              )
+              .trim();
 
-                            return `
+            return `
                             <div class="accordion-item ${statusClass}" data-index="${index}">
                                 <!-- Accordion Header -->
                                 <div class="accordion-header" onclick="this.closest('.accordion-item').classList.toggle('open')">
@@ -1050,51 +1050,47 @@ class MaintenanceForecast {
                                                 <span class="accordion-detail-label">Пробіг тоді</span>
                                                 <span class="accordion-detail-value">${details.lastMileage || "-"}</span>
                                             </div>
-                                            ${
-                                              !details.requiresDiagnostics
-                                                ? `
+                                            ${!details.requiresDiagnostics
+                ? `
                                             <div class="accordion-detail-row">
                                                 <span class="accordion-detail-label">Регламент</span>
                                                 <span class="accordion-detail-value">${details.regulation || "-"}</span>
                                             </div>
                                             `
-                                                : ""
-                                            }
+                : ""
+              }
                                         </div>
                                         <div class="accordion-detail-group">
                                             <div class="accordion-detail-title">ПРОГНОЗ</div>
-                                            ${
-                                              !details.requiresDiagnostics
-                                                ? `
+                                            ${!details.requiresDiagnostics
+                ? `
                                             <div class="accordion-detail-row">
                                                 <span class="accordion-detail-label">${details.isTimeBased ? "Очікувана дата обслуговування" : "Наступна заміна"}</span>
                                                 <span class="accordion-detail-value">${details.isTimeBased ? details.expectedDate || "-" : details.nextMileage || "-"}</span>
                                             </div>
                                             `
-                                                : ""
-                                            }
-                                            ${
-                                              details.requiresDiagnostics ||
-                                              details.overdueBy
-                                                ? `
+                : ""
+              }
+                                            ${details.requiresDiagnostics ||
+                details.overdueBy
+                ? `
                                                 <div class="accordion-detail-row">
                                                     <span class="accordion-detail-label">${details.requiresDiagnostics ? "Пробіг від заміни" : "Прострочено на"}</span>
                                                     <span class="accordion-detail-value">${details.requiresDiagnostics ? details.mileageDiffFormatted : details.overdueBy}</span>
                                                 </div>
                                             `
-                                                : ""
-                                            }
-                                            ${
-                                              details.isBattery &&
-                                              details.timeSinceInstallation
-                                                ? `
+                : ""
+              }
+                                            ${details.isBattery &&
+                details.timeSinceInstallation
+                ? `
                                                 <div class="accordion-detail-row">
                                                     <span class="accordion-detail-label">Час від останньої установки</span>
                                                     <span class="accordion-detail-value">${details.timeSinceInstallation}</span>
                                                 </div>
                                             `
-                                                : ""
-                                            }
+                : ""
+              }
                                             <div class="accordion-detail-row">
                                                 <span class="accordion-detail-label">Пріоритет</span>
                                                 <span class="accordion-detail-value">
@@ -1109,9 +1105,8 @@ class MaintenanceForecast {
                                                 <div class="accordion-progress-fill" style="width: ${details.progress}%; background: ${statusColor};"></div>
                                             </div>
                                             <div class="accordion-progress-label">${details.progress}% - ${details.requiresDiagnostics ? "Бажано звернути увагу найближчим часом" : finalStatus === "critical" ? "Потребує негайної уваги" : finalStatus === "warning" ? "Бажано звернути увагу найближчим часом" : "Все в нормі"}</div>
-                                            ${
-                                              details.requiresDiagnostics
-                                                ? `
+                                            ${details.requiresDiagnostics
+                ? `
                                             <div class="accordion-diagnostics-warning" style="margin-top: 16px; padding: 16px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);">
                                                 <div style="font-size: 16px; font-weight: 700; color: #92400e; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
                                                     <span style="font-size: 20px;">⚠️</span> Важливо:
@@ -1119,15 +1114,15 @@ class MaintenanceForecast {
                                                 <div style="font-size: 14px; font-weight: 600; color: #78350f; line-height: 1.5;">Ця запчастина потребує заміни тільки після діагностики та огляду. Не замінюйте без перевірки стану.</div>
                                             </div>
                                             `
-                                                : ""
-                                            }
+                : ""
+              }
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         `;
-                          })
-                          .join("")}
+          })
+          .join("")}
                 </div>
 
                     <!-- Disclaimer -->
@@ -1143,7 +1138,4 @@ class MaintenanceForecast {
     }
   }
 }
-
-// Експортуємо для використання
-window.MaintenanceForecast = MaintenanceForecast;
 // Maintenance forecast module loaded

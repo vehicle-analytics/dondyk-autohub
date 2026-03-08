@@ -1,4 +1,6 @@
-class DataProcessor {
+import { CONSTANTS } from '../config/appConfig.js';
+
+export class DataProcessor {
   /**
    * Обробляє дані з аркушів
    */
@@ -12,6 +14,7 @@ class DataProcessor {
     formatDate,
   ) {
     // Processing data...
+    // ...
 
     if (!scheduleData || !historyData) {
       throw new Error("Немає даних для обробки");
@@ -95,8 +98,8 @@ class DataProcessor {
       const requestStatus =
         row.length > CONSTANTS.COL_STATUS
           ? String(row[CONSTANTS.COL_STATUS] || "")
-              .trim()
-              .toLowerCase()
+            .trim()
+            .toLowerCase()
           : "";
       const isRejected = requestStatus === "відмова";
 
@@ -303,6 +306,3 @@ class DataProcessor {
     return regulations;
   }
 }
-
-// Експортуємо для використання
-window.DataProcessor = DataProcessor;

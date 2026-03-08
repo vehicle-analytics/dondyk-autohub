@@ -3,7 +3,7 @@
  * Розраховує прогноз на 6-12 місяців вперед
  */
 
-class PartsPurchaseForecast {
+export class PartsPurchaseForecast {
   constructor() {
     // Коефіцієнти для різних марок авто
     this.brandCoefficients = {
@@ -517,7 +517,3 @@ class PartsPurchaseForecast {
       .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   }
 }
-
-// Експортуємо для використання
-window.PartsPurchaseForecast = PartsPurchaseForecast;
-// Parts purchase forecast module loaded

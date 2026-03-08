@@ -3,7 +3,7 @@
  * Перевіряє чи була мийка авто за останній місяць
  */
 
-class CarWashRecommendations {
+export class CarWashRecommendations {
   constructor() {
     // Ключові слова для визначення мийки
     this.washKeywords = ["мийка", "мойка", "автомойка", "автомийка"];
@@ -81,7 +81,4 @@ class CarWashRecommendations {
     };
   }
 }
-
-// Експортуємо для використання
-window.CarWashRecommendations = CarWashRecommendations;
 // Car wash recommendations module loaded

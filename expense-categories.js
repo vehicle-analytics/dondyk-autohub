@@ -1,7 +1,7 @@
 // expense-categories.js
 // Конфігурація категорій витрат для аналітичної панелі авто
 
-const EXPENSE_CATEGORIES = {
+export const EXPENSE_CATEGORIES = {
   "ТО та обслуговування": [
     /масл\w*/i,
     /фільтр\w*/i,
@@ -280,11 +280,10 @@ const EXPENSE_CATEGORIES = {
   ],
 };
 
-// Експортуємо для використання в головному додатку
-window.EXPENSE_CATEGORIES_CONFIG = EXPENSE_CATEGORIES;
+
 
 // Словник варіацій форм слів для покращення пошуку
-const WORD_VARIATIONS = {
+export const WORD_VARIATIONS = {
   // Гальмівна система
   гальмівний: [
     "гальмівний",
@@ -443,7 +442,7 @@ const WORD_VARIATIONS = {
 };
 
 // Функція для отримання варіацій слова
-function getWordVariations(word) {
+export function getWordVariations(word) {
   const lowerWord = word.toLowerCase().trim();
 
   // Перевіряємо точний збіг
@@ -528,7 +527,7 @@ function getWordVariations(word) {
 }
 
 // Функція для генерації всіх перестановок масиву
-function generatePermutations(arr) {
+export function generatePermutations(arr) {
   if (arr.length <= 1) return [arr];
   const result = [];
   for (let i = 0; i < arr.length; i++) {
@@ -542,7 +541,7 @@ function generatePermutations(arr) {
 }
 
 // Функція для генерації всіх комбінацій варіацій слів (оптимізована версія)
-function generateWordCombinations(words) {
+export function generateWordCombinations(words) {
   // Обмежуємо кількість слів для уникнення експоненційного зростання
   if (words.length > 4) {
     // Для довгих фраз використовуємо тільки основні варіації
@@ -599,7 +598,7 @@ function generateWordCombinations(words) {
 }
 
 // Функція для створення регулярних виразів з варіацій ключових слів (оптимізована версія)
-function createFlexiblePatterns(keywordPhrase) {
+export function createFlexiblePatterns(keywordPhrase) {
   if (!keywordPhrase || typeof keywordPhrase !== "string") {
     return [];
   }
@@ -666,7 +665,7 @@ const patternsCache = new Map();
 const createFlexiblePatternsOriginal = createFlexiblePatterns;
 
 // Оптимізована версія з кешуванням
-function createFlexiblePatternsCached(keywordPhrase) {
+export function createFlexiblePatternsCached(keywordPhrase) {
   if (!keywordPhrase || typeof keywordPhrase !== "string") {
     return [];
   }
@@ -706,11 +705,10 @@ function createFlexiblePatternsCached(keywordPhrase) {
   }
 }
 
-// Експортуємо функцію глобально для використання в інших модулях
-window.createFlexiblePatterns = createFlexiblePatternsCached;
+
 
 // Додаткові утиліти для роботи з категоріями
-window.EXPENSE_CATEGORIES_UTILS = {
+export const EXPENSE_CATEGORIES_UTILS = {
   // Метод для отримання всіх категорій
   getAllCategories: function () {
     return Object.keys(EXPENSE_CATEGORIES);

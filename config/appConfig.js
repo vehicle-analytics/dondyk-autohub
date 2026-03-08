@@ -1,3 +1,5 @@
+import { PARTS_CONFIG } from './partsConfig.js';
+
 export const CONFIG = {
     API_KEY: import.meta.env.VITE_GOOGLE_API_KEY || 'AIzaSyCcJ4qsKeLtMBAFp8jXDIAiyb3Cpp4OrCQ',
     SPREADSHEET_ID: import.meta.env.VITE_SPREADSHEET_ID || '12-Z-tmRcjNLv7m8eFP_9rwCCERqPHCV9iVIdtL2vDck',
@@ -85,5 +87,6 @@ export const CONSTANTS = {
         'Генератор ⚡': 'Генератор',
         'Акумулятор 🔋': 'Акумулятор',
         'Свічки запалювання 🔥': 'Свічки запалювання'
-    }
+    },
+    PARTS_CONFIG: PARTS_CONFIG
 };

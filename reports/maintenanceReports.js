@@ -1,3 +1,4 @@
+import { CacheManager } from '../cache/cacheManager.js';
 import { CarProcessor } from '../processing/carProcessor.js';
 
 export class MaintenanceReports {
@@ -194,7 +195,6 @@ export class MaintenanceReports {
     // Дані завантажуються в ReportsApp, тому тут просто перевіряємо кеш як fallback
     try {
       // Спочатку перевіряємо кеш
-      const CacheManager = window.CacheManager; // Fallback for now or I should import it
       if (CacheManager) {
         const cached = CacheManager.getCachedData();
         if (

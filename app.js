@@ -9,6 +9,7 @@ import { MaintenanceForecast } from './maintenance-forecast.js';
 import { CarFilters } from './filters/carFilters.js';
 import { CarProcessor } from './processing/carProcessor.js';
 import { CONFIG, CONSTANTS } from './config/appConfig.js';
+import { StatsCalculator } from './analytics/statsCalculator.js';
 
 class CarAnalyticsApp {
   constructor() {
@@ -955,6 +956,18 @@ class CarAnalyticsApp {
     return CarFilters.filterCars(
       cars,
       this.state,
+      (car) => this.calculateHealthScore(car),
+      (score, car) => this.getHealthScoreLabel(score, car),
+    );
+  }
+
+  getCities(data) {
+    return StatsCalculator.getCities(data);
+  }
+
+  calculateStats(data) {
+    return StatsCalculator.calculateStats(
+      data,
       (car) => this.calculateHealthScore(car),
       (score, car) => this.getHealthScoreLabel(score, car),
     );

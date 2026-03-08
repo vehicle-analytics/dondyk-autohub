@@ -147,9 +147,6 @@ class AnalyticsApp {
   }
 
   getCachedData() {
-    if (!window.CacheManager) {
-      throw new Error("CacheManager не знайдено");
-    }
     return CacheManager.getCachedData();
   }
 
@@ -201,10 +198,6 @@ class AnalyticsApp {
   }
 
   processData(scheduleData, historyData, regulationsData, photoAssessmentData) {
-    if (!window.DataProcessor || !window.Formatters) {
-      throw new Error("Необхідні модулі не завантажені");
-    }
-
     const result = DataProcessor.processData(
       scheduleData,
       historyData,
@@ -220,9 +213,6 @@ class AnalyticsApp {
   }
 
   cacheData(data) {
-    if (!window.CacheManager) {
-      throw new Error("CacheManager не знайдено");
-    }
     CacheManager.cacheData(data);
   }
 
@@ -230,10 +220,6 @@ class AnalyticsApp {
     if (!this.appData) {
       this.processedCars = [];
       return;
-    }
-
-    if (!window.CarProcessor) {
-      throw new Error("CarProcessor не знайдено");
     }
 
     this.processedCars = CarProcessor.processCarData(
@@ -253,7 +239,6 @@ class AnalyticsApp {
   }
 
   findRegulationForCar(license, model, year, partName) {
-    if (!window.CarProcessor) return null;
     return CarProcessor.findRegulationForCar(
       license,
       model,
@@ -264,7 +249,6 @@ class AnalyticsApp {
   }
 
   getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license) {
-    if (!window.CarProcessor) return "good";
     return CarProcessor.getPartStatus(
       partName,
       mileageDiff,

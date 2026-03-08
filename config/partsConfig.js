@@ -4,7 +4,7 @@
  * Both index.html and reports.html should use this configuration
  */
 
-const PARTS_CONFIG = {
+export const PARTS_CONFIG = {
     'ТО (масло+фільтри) 🛢️': [
         'фільтр олив',
         'фільтр мас',

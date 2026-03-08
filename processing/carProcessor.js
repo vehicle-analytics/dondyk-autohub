@@ -232,7 +232,7 @@ export class CarProcessor {
     for (const car of sortedCars) {
       car.history.sort((a, b) => {
         const parseDateFunc =
-          (window.Formatters && window.Formatters.parseDate) ||
+          (Formatters && Formatters.parseDate) ||
           ((dateString) => {
             if (!dateString) return null;
             const date = new Date(dateString);

@@ -490,7 +490,7 @@ class CarAnalyticsApp {
       this.processedCars.length > 0
     ) {
       const data = this.processedCars;
-      const filteredData = CarFilters.filterCars(data);
+      const filteredData = this.filterCars(data);
       const cities = this.getCities(data);
       const stats = this.calculateStats(data);
 
@@ -533,7 +533,7 @@ class CarAnalyticsApp {
       }
 
       const data = this.processedCars;
-      const filteredData = CarFilters.filterCars(data);
+      const filteredData = this.filterCars(data);
       const cities = this.getCities(data);
       // Розраховуємо статистику на основі всіх даних, використовуючи ту саму логіку, що і фільтр
       const stats = this.calculateStats(data);

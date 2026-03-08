@@ -1,0 +1,23 @@
+{
+  "name": "dondyk-autohub",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.2.1",
+    "terser": "^5.46.0",
+    "vite": "^7.3.1"
+  }
+}

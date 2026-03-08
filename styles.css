@@ -1,0 +1,2814 @@
+/* ПОВНІСТЮ ВИДАЛЯЄМО ТЕМНУ ТЕМУ */
+:root {
+    color-scheme: light;
+    -webkit-color-scheme: light;
+}
+
+/* БЛОКУЄМО БУДЬ-ЯКІ АВТОМАТИЧНІ ТЕМИ */
+html,
+body,
+* {
+    color-scheme: light !important;
+    -webkit-color-scheme: light !important;
+}
+
+/* ОСНОВНІ СТИЛІ */
+html {
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
+}
+
+/* Забезпечуємо повне відображення головного інтерфейсу */
+#main-interface {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 100vh;
+    width: 100%;
+    overflow: visible !important;
+    position: relative;
+}
+
+#main-interface.hidden {
+    display: none !important;
+}
+
+/* Оптимізація для мобільних пристроїв */
+@media (max-width: 640px) {
+    .mobile-tap-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .mobile-text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100px;
+    }
+}
+
+/* Стилі для таблиць на малих екранах */
+.table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Закріплення фільтрів та шапки таблиці на головній сторінці */
+#main-filters-container {
+    position: relative;
+    z-index: 40;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+#main-filters-container.fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    z-index: 40;
+    transform: translateY(0);
+}
+
+#main-table-header-container {
+    position: relative;
+    z-index: 30;
+    background: white;
+}
+
+#main-table-header-container.fixed {
+    position: fixed;
+    /* top встановлюється динамічно через JavaScript (під фільтрами) */
+    left: 0;
+    right: 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    z-index: 30;
+}
+
+#main-table-container {
+    position: relative;
+}
+
+/* Sticky для шапки таблиці: робимо sticky на TH (а не на THEAD) для стабільної роботи */
+#cars-table-header {
+    z-index: 20;
+}
+
+#cars-table-header th {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    /* щоб не "просвічувались" рядки під час скролу */
+    background: inherit;
+}
+
+/* Фіксовані ширини колонок стабілізуємо таблицею fixed-layout */
+#cars-table,
+#cars-table-header-table {
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#cars-table th,
+#cars-table td,
+#cars-table-header-table th,
+#cars-table-header-table td {
+    box-sizing: border-box;
+}
+
+/* Заповнювач для fixed елементів */
+#main-table-header-spacer {
+    height: 0;
+    transition: height 0.2s ease;
+}
+
+#main-filters-spacer {
+    height: 0;
+    transition: height 0.3s ease;
+}
+
+/* Забезпечуємо, що overflow-x-auto не блокує fixed */
+.scroll-hint-container {
+    position: relative;
+}
+
+.scroll-hint-container>.overflow-x-auto {
+    position: relative;
+    /* Важливо для position: sticky всередині таблиці:
+       overflow-y: hidden ламає "липкість" при вертикальному скролі */
+    overflow-y: visible !important;
+}
+
+
+/* Покращення доступності */
+.focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Стилі для стану завантаження */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Стилі для друку */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+    }
+
+    table {
+        break-inside: avoid;
+    }
+}
+
+/* Фіксована панель для карточки авто */
+.sticky-top-panel {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 58, 138, 0.95) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Плавна анімація для фіксованої панелі */
+@keyframes slideInFromTop {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.sticky-top-panel {
+    animation: slideInFromTop 0.3s ease-out;
+}
+
+/* Плавний скрол */
+
+/* Відключення анімацій для людей з підвищеною чутливістю */
+@media (prefers-reduced-motion: reduce) {
+
+    .sticky-top-panel,
+    html {
+        animation: none;
+        scroll-behavior: auto;
+        transition: none;
+    }
+}
+
+/* МОБІЛЬНІ СТИЛІ - ЛЕГКІ */
+@media (max-width: 768px) {
+
+    .mobile-dark-text,
+    .mobile-dark-text * {
+        color: #1f2937 !important;
+    }
+
+    .mobile-dark-text input,
+    .mobile-dark-text select {
+        color: #1f2937 !important;
+        background-color: white !important;
+    }
+}
+
+/* Оптимальний розмір для значень в таблиці */
+.text-table-value {
+    font-size: 0.75rem !important;
+    /* 12px - стандартний text-xs */
+    line-height: 1.25 !important;
+    /* Трошки більше міжрядкового */
+    font-weight: 600 !important;
+    /* Напівжирний для кращої читабельності */
+}
+
+/* Стилі для підказки прокрутки таблиці - ВАРІАНТ 3 (найпростіший) */
+.scroll-hint-container {
+    position: relative;
+    width: 100%;
+}
+
+/* Підказка розміщується після таблиці */
+.scroll-hint {
+    margin-top: 25px;
+    /* Відступ зверху - можна змінювати */
+    text-align: center;
+    width: 100%;
+    z-index: 20;
+    pointer-events: none;
+}
+
+/* Стилі для плашки підказки */
+.scroll-hint-content {
+    display: inline-block;
+    /* Для центрування */
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    padding: 10px 20px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Текст підказки */
+.scroll-hint-text {
+    font-size: 0.875rem;
+    /* 14px */
+    font-weight: 600;
+    color: #1e40af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+/* Плавна анімація */
+@keyframes gentle-pulse {
+
+    0%,
+    100% {
+        opacity: 0.9;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.scroll-hint-text {
+    animation: gentle-pulse 2s infinite ease-in-out;
+}
+
+/* Стилі для миттєвого пошуку */
+#mainSearchInput,
+#historySearchInput {
+    transition: all 0.2s ease;
+}
+
+#mainSearchInput:focus,
+#historySearchInput:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
+    outline: none !important;
+}
+
+/* Ефект при введенні тексту */
+#mainSearchInput:not(:placeholder-shown),
+#historySearchInput:not(:placeholder-shown) {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* Покращення видимості плейсхолдера */
+#mainSearchInput::placeholder,
+#historySearchInput::placeholder {
+    color: #94a3b8;
+    opacity: 0.8;
+}
+
+#mainSearchInput:focus::placeholder,
+#historySearchInput:focus::placeholder {
+    opacity: 0.5;
+}
+
+/* Індикатор активного пошуку (опціонально) */
+.search-active-indicator {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #3b82f6;
+    font-size: 12px;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Стилі для карти стану авто */
+.parts-status-map {
+    position: relative;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.parts-status-map::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image:
+        radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+}
+
+.system-node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    transition: all 0.3s ease;
+}
+
+.system-node:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+    z-index: 10;
+}
+
+.system-tooltip {
+    position: absolute;
+    background: rgba(15, 23, 42, 0.95);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.car-outline {
+    position: absolute;
+    border: 2px solid #cbd5e1;
+    opacity: 0.3;
+}
+
+/* Стилі для графіку витрат */
+.cost-bar {
+    transition: all 0.3s ease;
+    min-height: 2px;
+}
+
+.cost-bar:hover {
+    opacity: 0.8;
+    transform: translateY(-2px);
+}
+
+/* Стилі для панелі швидких дій */
+.quick-action-btn {
+    transition: all 0.2s ease;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Анімація для health score */
+@keyframes pulse-health {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.health-score-animated {
+    animation: pulse-health 2s infinite ease-in-out;
+}
+
+/* Стилі для прогнозу обслуговування */
+.maintenance-forecast-card {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
+    border-left: 4px solid #f97316;
+}
+
+/* Анімація для нових елементів */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* Кастомні скролбари */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* Респонсивність для нових блоків */
+@media (max-width: 640px) {
+    .parts-status-map {
+        height: 200px !important;
+    }
+
+    .system-node {
+        width: 8px;
+        height: 8px;
+    }
+
+    .cost-bar {
+        min-width: 20px;
+    }
+}
+
+/* ============================================
+   МОДЕРНІЗОВАНІ КАРТКИ ЗАПЧАСТИН
+   ============================================ */
+
+/* Базові стилі картки запчастини */
+.part-card {
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    border: 2px solid;
+    border-left: 4px solid;
+    position: relative;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    cursor: pointer;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.part-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.part-card.card-good {
+    border-color: #10b981;
+    border-left-color: #10b981;
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.03), white);
+}
+
+.part-card.card-warning {
+    border-color: #f59e0b;
+    border-left-color: #f59e0b;
+    background: linear-gradient(to right, rgba(245, 158, 11, 0.03), white);
+}
+
+.part-card.card-critical {
+    border-color: #ef4444;
+    border-left-color: #ef4444;
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.03), white);
+}
+
+.part-card.card-none {
+    border-color: #94a3b8;
+    border-left-color: #94a3b8;
+    background: linear-gradient(to right, rgba(148, 163, 184, 0.03), white);
+}
+
+/* Card Header */
+.part-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.part-card .card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.part-card .card-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.part-card .card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+.part-card .card-badge {
+    background: #dcfce7;
+    color: #166534;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.part-card.card-warning .card-badge {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.part-card.card-critical .card-badge {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Card Info Row */
+.part-card .card-info-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    flex-wrap: wrap;
+    max-width: 100%;
+}
+
+.part-card .info-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #64748b;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.part-card .info-icon {
+    font-size: 12px;
+}
+
+.part-card .info-value {
+    color: #0f172a;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Card Main Value */
+.part-card .card-main-value {
+    margin-bottom: 8px;
+}
+
+.part-card .main-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 2px;
+    font-weight: 600;
+}
+
+.part-card .main-value {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+.part-card.card-good .main-value {
+    color: #10b981;
+}
+
+.part-card.card-warning .main-value {
+    color: #f59e0b;
+}
+
+.part-card.card-critical .main-value {
+    color: #ef4444;
+}
+
+/* Progress Bar */
+.part-card .card-progress {
+    margin-bottom: 6px;
+}
+
+.part-card .progress-track {
+    height: 5px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.part-card .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.part-card.card-good .progress-fill {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.part-card.card-warning .progress-fill {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.part-card.card-critical .progress-fill {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+/* Card Footer */
+.part-card .card-footer {
+    font-size: 12px;
+    color: #1e293b;
+    margin-top: auto;
+    padding-top: 4px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    line-height: 1.4;
+    white-space: normal;
+    font-weight: 600;
+}
+
+/* Empty Card */
+.part-card .card-empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex: 1;
+    gap: 10px;
+}
+
+.part-card .empty-icon {
+    font-size: 32px;
+    opacity: 0.3;
+}
+
+.part-card .empty-text {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.part-card .btn-add-data {
+    padding: 8px 18px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.part-card .btn-add-data:hover {
+    background: #1d4ed8;
+    transform: scale(1.02);
+}
+
+/* ============================================
+   ФІЛЬТРИ СТАТУСІВ ЗАПЧАСТИН
+   ============================================ */
+
+.parts-filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.parts-filter-btn-all {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #374151;
+}
+
+.parts-filter-btn-all:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+.parts-filter-btn-all.parts-filter-btn-active {
+    background: #e5e7eb;
+    border-color: #6b7280;
+    color: #111827;
+}
+
+.parts-filter-btn-critical {
+    background: #fee2e2;
+    border-color: transparent;
+    color: #dc2626;
+}
+
+.parts-filter-btn-critical:hover {
+    background: #fecaca;
+}
+
+.parts-filter-btn-critical.parts-filter-btn-active {
+    background: #fecaca;
+    border-color: #dc2626;
+}
+
+.parts-filter-btn-warning {
+    background: #fef3c7;
+    border-color: transparent;
+    color: #d97706;
+}
+
+.parts-filter-btn-warning:hover {
+    background: #fde68a;
+}
+
+.parts-filter-btn-warning.parts-filter-btn-active {
+    background: #fde68a;
+    border-color: #f59e0b;
+}
+
+.parts-filter-btn-good {
+    background: #dcfce7;
+    border-color: transparent;
+    color: #16a34a;
+}
+
+.parts-filter-btn-good:hover {
+    background: #bbf7d0;
+}
+
+.parts-filter-btn-good.parts-filter-btn-active {
+    background: #bbf7d0;
+    border-color: #16a34a;
+}
+
+.parts-filter-icon {
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.parts-filter-label {
+    font-weight: 600;
+}
+
+.parts-filter-badge {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 24px;
+    text-align: center;
+}
+
+.parts-filter-btn-all .parts-filter-badge {
+    background: #d1d5db;
+    color: #374151;
+}
+
+.parts-filter-btn-critical .parts-filter-badge {
+    background: #fca5a5;
+    color: #991b1b;
+}
+
+.parts-filter-btn-warning .parts-filter-badge {
+    background: #fcd34d;
+    color: #92400e;
+}
+
+.parts-filter-btn-good .parts-filter-badge {
+    background: #86efac;
+    color: #166534;
+}
+
+/* ============================================
+   МОДЕРНІЗОВАНИЙ HEADER ДЕТАЛЬНОГО ВИГЛЯДУ АВТО
+   ============================================ */
+
+.vehicle-detail-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 50;
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    border-radius: 0 0 12px 12px;
+    padding: 12px 16px;
+    color: white;
+    margin-bottom: 0;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Переконаємося, що wrapper не блокує fixed */
+#vehicle-detail-wrapper {
+    position: relative;
+    overflow: visible;
+}
+
+/* Компактний режим шапки */
+.vehicle-detail-header-compact {
+    padding: 6px 16px;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+    border-radius: 0;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-header-content {
+    padding: 0;
+    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vehicle-detail-header-content {
+    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vehicle-detail-header-compact .vehicle-detail-header-top {
+    display: flex;
+    margin-bottom: 4px;
+    opacity: 1;
+    max-height: 50px;
+}
+
+.vehicle-detail-header-top {
+    display: flex;
+    margin-bottom: 8px;
+    transition: margin-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vehicle-detail-header-compact .vehicle-detail-header-main {
+    gap: 12px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-icon-wrapper {
+    padding: 4px;
+    font-size: 20px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-emoji {
+    font-size: 20px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-plate {
+    font-size: 16px;
+    margin-bottom: 0;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-model {
+    font-size: 10px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-stats-horizontal {
+    gap: 8px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-stat-item-horizontal {
+    padding: 4px 8px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+    font-size: 9px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+    font-size: 12px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-stat-secondary {
+    display: none;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-stat-mileage {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 4px 8px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-health-progress {
+    height: 3px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-status-badge {
+    padding: 3px 8px;
+    font-size: 10px;
+    margin-left: 8px;
+}
+
+.vehicle-detail-header-compact .vehicle-detail-back-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    gap: 4px;
+}
+
+.vehicle-detail-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    white-space: nowrap;
+    will-change: padding, font-size, gap;
+}
+
+.vehicle-detail-back-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateX(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.vehicle-detail-icon-wrapper {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 8px;
+    padding: 6px;
+    font-size: 28px;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.vehicle-detail-emoji {
+    display: block;
+}
+
+.vehicle-detail-plate {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    letter-spacing: 0.3px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    line-height: 1.2;
+}
+
+.vehicle-detail-model {
+    font-size: 13px;
+    opacity: 0.9;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.vehicle-detail-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-left: 12px;
+}
+
+.vehicle-detail-status-badge-good {
+    background: rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.vehicle-detail-status-badge-warning {
+    background: rgba(245, 158, 11, 0.3);
+    border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.vehicle-detail-status-badge-critical {
+    background: rgba(239, 68, 68, 0.3);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+/* Навігаційні вкладки */
+.vehicle-detail-navigation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 40;
+    background: white;
+    padding: 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.vehicle-detail-navigation-compact {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+}
+
+.vehicle-detail-nav-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    overflow-x: auto;
+    transition: padding 0.3s ease;
+}
+
+.vehicle-detail-navigation-compact .vehicle-detail-nav-container {
+    padding: 6px 16px;
+}
+
+.vehicle-detail-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4b5563;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.vehicle-detail-nav-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.vehicle-detail-nav-btn-active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+    font-weight: 600;
+}
+
+.vehicle-detail-nav-btn-active:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.vehicle-detail-navigation-compact .vehicle-detail-nav-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+.vehicle-detail-navigation-compact .vehicle-detail-nav-btn span {
+    font-size: 16px;
+}
+
+.vehicle-detail-nav-btn span {
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* Горизонтальна статистика */
+.vehicle-detail-stats-horizontal {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.vehicle-detail-stat-item-horizontal {
+    text-align: center;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
+.vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+    font-size: 9px;
+    opacity: 0.85;
+    margin-bottom: 1px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    margin-bottom: 3px;
+}
+
+.vehicle-detail-health-progress {
+    width: 100%;
+    margin-top: 2px;
+}
+
+.vehicle-detail-health-progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.vehicle-detail-health-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.vehicle-detail-health-progress-good {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.vehicle-detail-health-progress-warning {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.vehicle-detail-health-progress-critical {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+@media (max-width: 1400px) {
+    .vehicle-detail-stats-horizontal {
+        gap: 20px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+        font-size: 10px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .vehicle-detail-stats-horizontal {
+        gap: 16px;
+    }
+
+    .vehicle-detail-stat-item-horizontal {
+        min-width: 90px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+        font-size: 9px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .vehicle-detail-stats-horizontal {
+        gap: 12px;
+    }
+
+    .vehicle-detail-stat-item-horizontal {
+        min-width: 80px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+        font-size: 9px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+        font-size: 14px;
+    }
+
+    .vehicle-detail-health-progress-track {
+        height: 5px;
+    }
+}
+
+@media (max-width: 768px) {
+    .vehicle-detail-header {
+        padding: 10px 12px;
+    }
+
+    .vehicle-detail-header>div>div:last-child {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .vehicle-detail-stats-horizontal {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 10px;
+        order: 3;
+        margin-top: 8px;
+    }
+
+    .vehicle-detail-status-badge {
+        order: 2;
+        margin-left: auto;
+        margin-left: 0;
+    }
+
+    .vehicle-detail-plate {
+        font-size: 18px;
+    }
+
+    .vehicle-detail-icon-wrapper {
+        font-size: 24px;
+        padding: 5px;
+    }
+
+    .vehicle-detail-stat-item-horizontal {
+        flex: 0 0 calc(33.333% - 8px);
+        min-width: 0;
+        max-width: calc(33.333% - 8px);
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+        font-size: 8px;
+        line-height: 1.2;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+        font-size: 13px;
+        line-height: 1.2;
+    }
+
+    .vehicle-detail-health-progress-track {
+        height: 4px;
+    }
+}
+
+@media (max-width: 640px) {
+    .vehicle-detail-stats-horizontal {
+        gap: 10px;
+    }
+
+    .vehicle-detail-stat-item-horizontal {
+        flex: 0 0 calc(50% - 5px);
+        max-width: calc(50% - 5px);
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+        font-size: 8px;
+        margin-bottom: 1px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+        font-size: 12px;
+        margin-bottom: 2px;
+    }
+
+    .vehicle-detail-health-progress {
+        margin-top: 2px;
+    }
+
+    .vehicle-detail-health-progress-track {
+        height: 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    .vehicle-detail-stats-horizontal {
+        gap: 8px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .vehicle-detail-stat-item-horizontal {
+        flex: 1 1 100%;
+        max-width: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        text-align: left;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .vehicle-detail-stat-item-horizontal:last-child {
+        border-bottom: none;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-label-horizontal {
+        font-size: 9px;
+        margin-bottom: 0;
+        margin-right: 12px;
+    }
+
+    .vehicle-detail-stat-item-horizontal .stat-value-horizontal {
+        font-size: 13px;
+        margin-bottom: 0;
+        text-align: right;
+    }
+
+    .vehicle-detail-health-progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin-top: 0;
+    }
+
+    .vehicle-detail-stat-item-horizontal:first-child {
+        position: relative;
+        padding-bottom: 12px;
+    }
+}
+
+/* ============================================
+   МОДЕРНІЗОВАНІ КАРТКИ АВТОМОБІЛІВ
+   ============================================ */
+
+/* Базові стилі картки */
+.vehicle-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+}
+
+.vehicle-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.15);
+    border-color: #2563eb;
+}
+
+/* Header з градієнтом */
+.vehicle-card-header {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    color: white;
+}
+
+.vehicle-card[data-status="warning"] .vehicle-card-header {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.vehicle-card[data-status="critical"] .vehicle-card-header {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.vehicle-card[data-status="inactive"] .vehicle-card-header {
+    background: linear-gradient(135deg, #64748b, #475569);
+}
+
+.vehicle-icon-wrapper {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 32px;
+    line-height: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.vehicle-emoji {
+    display: block;
+}
+
+.vehicle-title-block {
+    flex: 1;
+    min-width: 0;
+}
+
+.vehicle-plate {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 0 0 4px 0;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    line-height: 1.2;
+}
+
+.vehicle-model {
+    font-size: 13px;
+    margin: 0;
+    opacity: 0.95;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.vehicle-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    flex-shrink: 0;
+}
+
+.status-indicator.status-good {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.status-indicator.status-warning {
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+}
+
+.status-indicator.status-critical {
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Сітка статистики */
+.vehicle-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 20px;
+    background: linear-gradient(to bottom, #f8fafc, white);
+}
+
+.stat-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+}
+
+.stat-box:hover {
+    border-color: #2563eb;
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+.stat-icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+/* Стан авто (Health) */
+.vehicle-health {
+    padding: 16px 20px;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+}
+
+.health-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.health-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.health-percentage {
+    font-size: 18px;
+    font-weight: 800;
+    color: #2563eb;
+}
+
+.health-progress {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.health-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb, #3b82f6);
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.health-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.3),
+            transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.health-progress-fill[data-level="critical"] {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.health-progress-fill[data-level="warning"] {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.health-progress-fill[data-level="good"] {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+/* Footer з кнопками */
+.vehicle-card-footer {
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.vehicle-card-footer button {
+    flex: 1;
+    padding: 10px 16px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.vehicle-card-footer button:hover {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(37, 99, 235, 0.2);
+}
+
+.vehicle-card-footer button span {
+    font-size: 14px;
+}
+
+/* Сітка карток */
+.vehicles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
+    padding: 20px 0;
+}
+
+/* Перемикач режиму перегляду */
+.view-mode-toggle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 8px;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.view-mode-btn {
+    flex: 1;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.view-mode-btn:hover {
+    background: #f1f5f9;
+    color: #2563eb;
+}
+
+.view-mode-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+/* Бейдж "Новий" */
+.badge-new {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #10b981;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    z-index: 10;
+}
+
+/* Responsive для карток */
+@media (max-width: 1024px) {
+    .vehicles-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+    }
+
+    .vehicle-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .vehicle-card-footer {
+        flex-wrap: wrap;
+    }
+
+    .vehicle-card-footer button {
+        flex: 1 1 calc(50% - 4px);
+    }
+}
+
+@media (max-width: 640px) {
+    .vehicles-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px 0;
+    }
+
+    .vehicle-card-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .vehicle-status-badge {
+        align-self: center;
+    }
+
+    .vehicle-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 16px;
+    }
+
+    .vehicle-card-footer {
+        flex-direction: column;
+        padding: 12px 16px;
+    }
+
+    .vehicle-card-footer button {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .view-mode-toggle {
+        flex-direction: column;
+    }
+
+    .view-mode-btn {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   ІНТЕРАКТИВНА КАРТА СТАНУ АВТО - TOOLTIP
+   ============================================ */
+
+.system-map-item {
+    position: relative;
+}
+
+.system-map-icon {
+    position: relative;
+}
+
+/* Назви систем над іконками - завжди видимі */
+.system-map-name {
+    z-index: 20 !important;
+    pointer-events: none;
+}
+
+.system-map-name>div {
+    display: inline-block !important;
+    white-space: nowrap !important;
+}
+
+/* Підписи під іконками системи - завжди видимі */
+.system-map-label {
+    z-index: 20 !important;
+    pointer-events: none;
+}
+
+.system-map-label>div {
+    display: inline-block !important;
+    white-space: nowrap !important;
+}
+
+.system-map-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    padding: 12px;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
+    z-index: 50;
+}
+
+.system-map-item:hover .system-map-tooltip {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.system-map-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: white;
+}
+
+.system-map-tooltip::before {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 10px solid transparent;
+    border-top-color: #d1d5db;
+    margin-top: -2px;
+}
+
+/* ===== СТИЛІ ДЛЯ АКОРДЕОНУ ПРОГНОЗУ ОБСЛУГОВУВАННЯ ===== */
+.accordion-item {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid;
+    transition: all 0.3s;
+}
+
+.accordion-item.urgent {
+    border-color: #ef4444;
+}
+
+.accordion-item.warning {
+    border-color: #f59e0b;
+}
+
+.accordion-item.normal {
+    border-color: #10b981;
+}
+
+.accordion-item.open {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.accordion-header {
+    padding: 16px 20px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto;
+    align-items: center;
+    gap: 16px;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.accordion-item.urgent .accordion-header {
+    background: linear-gradient(to right, rgba(239, 68, 68, 0.05), white);
+}
+
+.accordion-item.warning .accordion-header {
+    background: linear-gradient(to right, rgba(245, 158, 11, 0.05), white);
+}
+
+.accordion-item.normal .accordion-header {
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.05), white);
+}
+
+.accordion-header:hover {
+    background: #f8fafc;
+}
+
+.accordion-item.open .accordion-header {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* Status Dot */
+.accordion-status {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Skeleton Loading */
+.skeleton-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.skeleton-header {
+    height: 80px;
+    background: linear-gradient(90deg, #1e3a8a 25%, #1e4a9a 50%, #1e3a8a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.skeleton-filters {
+    height: 60px;
+    background: linear-gradient(90deg, #1e3a8a 25%, #1e4a9a 50%, #1e3a8a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.skeleton-card {
+    height: 200px;
+    background: linear-gradient(90deg, #1e3a8a 25%, #1e4a9a 50%, #1e3a8a 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 12px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.accordion-item.urgent .accordion-status {
+    background: #ef4444;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
+}
+
+.accordion-item.warning .accordion-status {
+    background: #f59e0b;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+}
+
+.accordion-item.normal .accordion-status {
+    background: #10b981;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+}
+
+/* Part Info */
+.accordion-part {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.accordion-part-icon {
+    font-size: 24px;
+}
+
+.accordion-part-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.accordion-part-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.accordion-part-last {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Distance */
+.accordion-distance {
+    text-align: center;
+    min-width: 120px;
+}
+
+.accordion-distance-label {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.accordion-distance-value {
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.accordion-item.urgent .accordion-distance-value {
+    color: #ef4444;
+}
+
+.accordion-item.warning .accordion-distance-value {
+    color: #f59e0b;
+}
+
+.accordion-item.normal .accordion-distance-value {
+    color: #10b981;
+}
+
+/* Date */
+.accordion-date {
+    text-align: center;
+    min-width: 100px;
+}
+
+.accordion-date-label {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.accordion-date-value {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.accordion-item.urgent .accordion-date-value {
+    color: #ef4444;
+}
+
+.accordion-item.warning .accordion-date-value {
+    color: #f59e0b;
+}
+
+.accordion-item.normal .accordion-date-value {
+    color: #10b981;
+}
+
+/* Toggle Icon */
+.accordion-toggle {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.accordion-toggle:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.accordion-toggle-icon {
+    font-size: 18px;
+    color: #1e293b;
+    font-weight: 700;
+    transition: transform 0.3s;
+    line-height: 1;
+    display: block;
+}
+
+.accordion-item.open .accordion-toggle-icon {
+    transform: rotate(180deg);
+}
+
+.accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.accordion-item.open .accordion-body {
+    max-height: 1000px;
+}
+
+.accordion-content {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    background: #f8fafc;
+}
+
+.accordion-detail-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.accordion-detail-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.accordion-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #f1f5f9;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.accordion-detail-label {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.accordion-detail-value {
+    color: #0f172a;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.accordion-progress-section {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+}
+
+.accordion-progress-bar {
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 10px 0 6px 0;
+}
+
+.accordion-progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.4s ease;
+}
+
+.accordion-progress-label {
+    text-align: center;
+    font-size: 12px;
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.accordion-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.accordion-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.accordion-btn-primary {
+    background: #2563eb;
+    color: white;
+    border: none;
+}
+
+.accordion-btn-primary:hover {
+    background: #1d4ed8;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.accordion-btn-secondary {
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.accordion-btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.forecast-disclaimer {
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.forecast-disclaimer-icon {
+    font-size: 20px;
+}
+
+.forecast-disclaimer-text {
+    font-size: 14px;
+    color: #78350f;
+    font-weight: 600;
+}
+
+/* Responsive для акордеону */
+@media (max-width: 768px) {
+    .forecast-accordion-header {
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+    }
+
+    .forecast-distance,
+    .forecast-date {
+        display: none;
+    }
+
+    .forecast-accordion-content {
+        grid-template-columns: 1fr;
+    }
+
+    .accordion-actions {
+        flex-direction: column;
+    }
+}
+
+/* ===== СТИЛІ ДЛЯ РЕКОМЕНДАЦІЙ (ПРОФЕСІЙНИЙ ДИЗАЙН) ===== */
+.recommendation-container {
+    margin-top: 20px;
+}
+
+.recommendation-header {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 16px 16px 0 0;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.recommendation-header-icon {
+    font-size: 28px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.recommendation-header-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.recommendation-header-count {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 5px 10px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.recommendation-header-count span {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.recommendation-cards-container {
+    background: #ffffff;
+    border-radius: 0 0 16px 16px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.recommendation-card {
+    border-radius: 12px;
+    border: 1px solid;
+    border-left-width: 4px;
+    padding: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideInUp 0.5s ease-out both;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+}
+
+.recommendation-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.recommendation-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.recommendation-card:hover::before {
+    opacity: 1;
+}
+
+.recommendation-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.recommendation-icon {
+    font-size: 24px;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.recommendation-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.4;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.recommendation-urgent-badge {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.recommendation-urgent-icon {
+    font-size: 14px;
+}
+
+.recommendation-urgent-text {
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 10px;
+}
+
+.recommendation-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.recommendation-badge-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.recommendation-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.recommendation-badge:hover {
+    transform: scale(1.02);
+}
+
+.recommendation-badge-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.recommendation-badge-label {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.recommendation-badge-value {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.recommendation-badge-regulation {
+    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    border: 1px solid #7dd3fc;
+    color: #0c4a6e;
+}
+
+.recommendation-badge-frequency {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #fbbf24;
+    color: #78350f;
+}
+
+.recommendation-badge-manufacturers {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #86efac;
+    color: #166534;
+}
+
+.recommendation-details {
+    margin-top: 4px;
+}
+
+.recommendation-details-text {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #475569;
+    margin: 0;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    border-left: 3px solid #cbd5e1;
+}
+
+/* Анімації */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* Responsive для рекомендацій */
+@media (max-width: 768px) {
+    .recommendation-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    .recommendation-header-count {
+        align-self: flex-end;
+    }
+
+    .recommendation-card {
+        padding: 16px;
+    }
+
+    .recommendation-card-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .recommendation-urgent-badge {
+        align-self: flex-start;
+    }
+
+    .recommendation-title {
+        font-size: 16px;
+    }
+
+    .recommendation-icon {
+        font-size: 28px;
+    }
+
+    .recommendation-badge {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+
+    .recommendation-details-text {
+        font-size: 13px;
+        padding: 10px 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .recommendation-header-title {
+        font-size: 18px;
+    }
+
+    .recommendation-header-count {
+        font-size: 13px;
+        padding: 4px 8px;
+    }
+
+    .recommendation-header-count span {
+        color: #ffffff !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .recommendation-cards-container {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .recommendation-card {
+        padding: 14px;
+    }
+
+    .recommendation-title {
+        font-size: 15px;
+    }
+
+    .recommendation-badge-group {
+        flex-direction: column;
+    }
+
+    .recommendation-badge {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* ===== СТИЛІ ДЛЯ SVG ІКОНОК ЗАПЧАСТИН ===== */
+.part-icon {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+    color: currentColor;
+    stroke: currentColor;
+    fill: none;
+}
+
+.card-icon .part-icon {
+    width: 24px;
+    height: 24px;
+    color: #475569;
+}
+
+.recommendation-icon .part-icon {
+    width: 48px;
+    height: 48px;
+    color: #1e293b;
+}
+
+.accordion-part-icon .part-icon {
+    width: 24px;
+    height: 24px;
+    color: #475569;
+}
+
+/* Анімація для іконок при hover */
+.part-icon {
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.card-icon:hover .part-icon {
+    transform: scale(1.1);
+    color: #2563eb;
+}
+
+/* Стилі для різних статусів */
+.card-critical .part-icon {
+    color: #ef4444;
+}
+
+.card-warning .part-icon {
+    color: #f59e0b;
+}
+
+.card-good .part-icon {
+    color: #10b981;
+}
+
+.system-map-icon .part-icon {
+    width: 32px;
+    height: 32px;
+    color: white;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+/* ===== RESPONSIVE ДЛЯ КОМПАКТНОГО РЕЖИМУ ШАПКИ ===== */
+@media (max-width: 1024px) {
+    .vehicle-detail-header-compact .vehicle-detail-stat-secondary {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .vehicle-detail-header-compact .vehicle-detail-stats-horizontal {
+        display: none;
+    }
+
+    .vehicle-detail-header-compact .vehicle-detail-status-badge {
+        display: none;
+    }
+
+    .vehicle-detail-navigation-compact .vehicle-detail-nav-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .vehicle-detail-navigation-compact .vehicle-detail-nav-btn span {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .vehicle-detail-header-compact {
+        padding: 4px 12px;
+    }
+
+    .vehicle-detail-header-compact .vehicle-detail-plate {
+        font-size: 14px;
+    }
+
+    .vehicle-detail-header-compact .vehicle-detail-model {
+        font-size: 9px;
+    }
+
+    .vehicle-detail-navigation-compact .vehicle-detail-nav-container {
+        padding: 4px 12px;
+        gap: 4px;
+    }
+
+    .vehicle-detail-navigation-compact .vehicle-detail-nav-btn {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+
+    .vehicle-detail-navigation-compact .vehicle-detail-nav-btn span {
+        font-size: 12px;
+        margin-right: 2px;
+    }
+}

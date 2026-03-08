@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аналітика автопарку - Dondyk AutoHub</title>
+    <meta name="description" content="Розширена аналітика та звіти по автопарку">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#1e40af" media="(prefers-color-scheme: light)">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="Logo.png">
+
+    <!-- Preconnect to CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <!-- Preload critical resources -->
+    <link rel="preload" href="Logo.png" as="image">
+    <link rel="preload" href="styles.css" as="style">
+
+    <link rel="stylesheet" href="styles.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: false, theme: { extend: {} } }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .metric-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .sticky-filters {
+            position: relative;
+            z-index: 40;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .sticky-filters.fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            z-index: 40;
+        }
+
+        .sticky-filters-spacer {
+            height: 0;
+            transition: height 0.3s ease;
+        }
+
+        #main-interface,
+        #app {
+            position: relative;
+            overflow: visible !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+    <!-- Shared configuration -->
+    <script src="config/partsConfig.js"></script>
+    <!-- Модулі утиліт та обробки даних -->
+    <script src="utils/formatters.js" defer></script>
+    <script src="cache/cacheManager.js" defer></script>
+    <script src="data/dataProcessor.js" defer></script>
+    <script src="processing/carProcessor.js" defer></script>
+    <script src="filters/carFilters.js" defer></script>
+    <!-- Data Modules -->
+    <script src="analytics/analyticsUI.js" defer></script>
+
+    <!-- Instant Loading Script (Stale-While-Revalidate) -->
+    <script>
+        if (localStorage.getItem("carAnalyticsData")) {
+            document.documentElement.classList.add('has-cache');
+        }
+    </script>
+    <style>
+        html.has-cache #loading-screen {
+            display: none !important;
+        }
+
+        html.has-cache #main-interface {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
+    <style>
+        :root {
+            color-scheme: light;
+            -webkit-color-scheme: light;
+        }
+
+        html,
+        body {
+            color-scheme: light !important;
+            -webkit-color-scheme: light !important;
+            forced-color-adjust: none;
+            -webkit-forced-color-adjust: none;
+        }
+
+        * {
+            color-scheme: light !important;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .metric-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .sticky-filters {
+            position: relative;
+            z-index: 40;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .sticky-filters.fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            z-index: 40;
+            transform: translateY(0);
+        }
+
+        .sticky-filters-spacer {
+            height: 0;
+            transition: height 0.3s ease;
+        }
+
+        html,
+        body {
+            overflow-x: hidden;
+            height: auto;
+        }
+
+        #main-interface {
+            position: relative;
+            overflow: visible !important;
+        }
+
+        #app {
+            overflow: visible !important;
+            position: relative;
+        }
+
+        body {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            position: relative;
+        }
+
+        html {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+
+    <!-- Instant Loading Script (Stale-While-Revalidate) -->
+    <script>
+        if (localStorage.getItem("carAnalyticsData")) {
+            document.documentElement.style.setProperty('--initial-loader-display', 'none');
+            document.documentElement.classList.add('has-cache');
+        }
+    </script>
+    <style>
+        html.has-cache #loading-screen {
+            display: none !important;
+        }
+
+        html.has-cache #main-interface {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="loading-screen"
+            class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-600 to-indigo-700">
+            <div class="text-center max-w-md">
+                <picture>
+                    <img src="Logo.png" alt="AutoHub" class="h-16 mx-auto mb-4"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                </picture>
+                <div class="text-4xl mb-4" style="display:none;">📊</div>
+                <h1 class="text-2xl font-bold text-white mb-2">Аналітика автопарку</h1>
+                <p class="text-blue-200 text-sm mb-6">Завантаження даних...</p>
+                <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div id="loading-bar"
+                        class="h-full bg-gradient-to-r from-blue-400 to-blue-300 transition-all duration-300"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="main-interface" class="hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-b-xl shadow-xl p-4 mb-6">
+                <div class="max-w-7xl mx-auto px-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <a href="index.html" class="text-white hover:text-blue-100 transition-colors">
+                                    ← Назад
+                                </a>
+                                <span class="text-blue-200">|</span>
+                                <span class="text-blue-100 text-sm">Головна > Аналітика</span>
+                            </div>
+                            <h1 class="text-2xl sm:text-3xl font-bold text-white mb-1">📊 Аналітика автопарку</h1>
+                            <p class="text-blue-100 text-sm" id="date-range">Період: Завантаження...</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="export-pdf"
+                                class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white text-sm font-medium">
+                                🖨️ PDF
+                            </button>
+                            <button id="export-excel"
+                                class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white text-sm font-medium">
+                                📊 Excel
+                            </button>
+                            <button id="refresh-analytics"
+                                class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white text-sm font-medium">
+                                🔄 Оновити
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Panel (Sticky) -->
+            <div class="sticky-filters-spacer" id="filters-spacer"></div>
+            <div class="sticky-filters py-4 mb-6" id="sticky-filters-panel">
+                <div class="max-w-7xl mx-auto px-4">
+                    <div class="flex flex-wrap md:flex-nowrap gap-3 items-center">
+                        <div class="flex items-center gap-2 whitespace-nowrap flex-shrink-0 w-full md:w-auto">
+                            <span class="text-sm font-semibold text-gray-700">Період:</span>
+                            <div class="flex flex-wrap gap-1">
+                                <button
+                                    class="filter-period px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                                    data-period="day">День</button>
+                                <button
+                                    class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                    data-period="week">Тиждень</button>
+                                <button
+                                    class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                    data-period="month">Місяць</button>
+                                <button
+                                    class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                    data-period="quarter">Квартал</button>
+                                <button
+                                    class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                    data-period="halfyear">Пів року</button>
+                                <button
+                                    class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                    data-period="year">Рік</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 whitespace-nowrap flex-shrink-0 w-full sm:w-auto"
+                            id="year-filter-container">
+                            <span class="text-sm font-semibold text-gray-700">Рік:</span>
+                            <select id="filter-year"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0 flex-1 sm:flex-initial">
+                                <option value="all">Всі роки</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 whitespace-nowrap flex-shrink-0 w-full sm:w-auto">
+                            <span class="text-sm font-semibold text-gray-700">Місто:</span>
+                            <select id="filter-city"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0 flex-1 sm:flex-initial">
+                                <option value="all">Всі міста</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 whitespace-nowrap flex-shrink-0 w-full sm:w-auto">
+                            <span class="text-sm font-semibold text-gray-700">Авто:</span>
+                            <select id="filter-vehicle"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0 flex-1 sm:flex-initial">
+                                <option value="all">Всі авто</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 whitespace-nowrap flex-shrink-0 w-full sm:w-auto">
+                            <span class="text-sm font-semibold text-gray-700">Марка:</span>
+                            <select id="filter-brand"
+                                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0 flex-1 sm:flex-initial">
+                                <option value="all">Всі марки</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="max-w-7xl mx-auto px-4 pb-8">
+                <!-- Dashboard Metrics -->
+                <div id="metrics-dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 fade-in">
+                    <!-- Metrics will be rendered here -->
+                </div>
+
+                <!-- Expenses Section -->
+                <div id="expenses-section"
+                    class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">💰 Витрати</h2>
+                    <div id="expenses-content"></div>
+                </div>
+
+                <!-- Mileage Section -->
+                <div id="mileage-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">📏 Пробіг</h2>
+                    <div id="mileage-content"></div>
+                </div>
+
+                <!-- Ratings Section -->
+                <div id="ratings-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">🏆 Рейтинги</h2>
+                    <div id="ratings-content"></div>
+                </div>
+
+                <!-- Breakdown Analysis Section -->
+                <div id="breakdown-section"
+                    class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">🔧 Аналіз поломок</h2>
+                    <div id="breakdown-content"></div>
+                </div>
+
+                <!-- Requests Section -->
+                <div id="requests-section"
+                    class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">📋 Заявки</h2>
+                    <div id="requests-content"></div>
+                </div>
+
+                <!-- Forecast Section -->
+                <div id="forecast-section"
+                    class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">🔮 Прогноз</h2>
+                    <div id="forecast-content"></div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="mt-8 py-4 text-center text-gray-600 text-xs border-t border-gray-200">
+                <div class="flex items-center justify-center gap-2 mb-1">
+                    <p>Dondyk AutoHub Analytics • Розширена аналітика</p>
+                </div>
+                <p class="mt-1 text-xs opacity-70">© 2026 • Версія 1.0</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // Використовуємо той самий CONFIG що й на головній сторінці
+        if (!window.CONFIG) {
+            window.CONFIG = {
+                API_KEY: 'AIzaSyCcJ4qsKeLtMBAFp8jXDIAiyb3Cpp4OrCQ',
+                SPREADSHEET_ID: '12-Z-tmRcjNLv7m8eFP_9rwCCERqPHCV9iVIdtL2vDck',
+                SHEETS: {
+                    SCHEDULE: 'ГРАФІК ОБСЛУГОВУВАННЯ',
+                    HISTORY: 'Ответы на форму (1)',
+                    REGULATIONS: 'Регламент ТО',
+                    PHOTO_ASSESSMENT: 'Оцінка авто фото'
+                },
+                REFRESH_TIME: '06:00',
+                DEBUG: false
+            };
+        }
+
+        // Додаємо CONSTANTS (необхідні для DataProcessor)
+        window.CONSTANTS = {
+            SCHEDULE_COL_CITY: 1,
+            SCHEDULE_COL_LICENSE: 2,
+            SCHEDULE_COL_MODEL: 3,
+            SCHEDULE_COL_YEAR: 4,
+            COL_DATE: 0,
+            COL_CITY: 2,
+            COL_CAR: 3,
+            COL_MILEAGE: 4,
+            COL_DESCRIPTION: 6,
+            COL_PART_CODE: 7,
+            COL_DATE_NEEDED: 9,
+            COL_UNIT: 11,
+            COL_QUANTITY: 12,
+            COL_PRICE: 13,
+            COL_TOTAL_WITH_VAT: 15,
+            COL_STATUS: 16,
+            PARTS_ORDER: [
+                'ТО (масло+фільтри) 🛢️',
+                'ГРМ (ролики+ремінь) ⚙️',
+                'Помпа 💧',
+                'Обвідний ремінь+ролики 🔧',
+                'Діагностика ходової 🔍',
+                'Розвал-сходження 📐',
+                'Профілактика направляючих супортів 🛠️',
+                "Компютерна діагностика 💻",
+                'Прожиг сажового фільтру 🔥',
+                'Свічки запалювання 🔥',
+                'Гальмівні диски передні💿',
+                'Гальмівні диски задні💿',
+                'Гальмівні колодки передні🛑',
+                'Гальмівні колодки задні🛑',
+                'Гальмівні колодки ручного гальма🛑',
+                'Амортизатори передні🔧',
+                'Амортизатори задні🔧',
+                'Опора амортизаторів 🛠️',
+                'Шарова опора ⚪',
+                'Рульова тяга 🔗',
+                'Рульовий накінечник 🔩',
+                'Зчеплення ⚙️',
+                'Стартер 🔋',
+                'Генератор ⚡',
+                'Акумулятор 🔋'
+            ],
+            PARTS_CONFIG: {
+                'ТО (масло+фільтри) 🛢️': ['фільтр олив', 'фільтр мас', 'фильтр мас', 'масляний ф', 'масляный ф', 'оливний ф', 'заміна масла дв', 'замена масла дв', 'заміна оливи дв', 'заміна мастила дв', 'заміна фільтр', 'замена фильтр', 'фільтра масл', 'фільтра олив', 'фильтра масл', 'масляного ф', 'масляний фільтр', 'масляный фильтр', 'то двигун', 'то двигат', 'масла і фільтр', 'масла и ф', 'масла та фільтр', 'масл та фільтр', 'масл і фільтр', 'масл и ф', 'олив двигун', 'мас двигун'],
+                'ГРМ (ролики+ремінь) ⚙️': ['грм', 'комплект грм', 'ремкомплект грм', 'ремінь грм', 'ремень грм', 'пас зубч', 'ремень зубч', 'ремінь зубч', 'заміна грм', 'замена грм'],
+                'Помпа 💧': ['помп', 'насос охолоджуюч', 'насос вод', 'водяний насос', 'водяной насос', 'водяна помпа', 'заміна помп', 'замена помп', 'заміна насос', 'замена насос', 'water pump'],
+                'Обвідний ремінь+ролики 🔧': ['ремен', 'ремін', 'пас', 'полікліновий', 'поликлиновой', 'клиновий', 'доріжковий', 'дорожковий', 'многоручейковый', 'ремен генератор', 'ремін генератор', 'пас генератор', 'натяжн ремен', 'натяжн ремін', 'натяжной ремень', 'обвідний', 'обводной', 'обводний', 'приводний ремен', 'приводной ремен', 'ролик', 'ролики', 'натяжний ролик', 'натяжной ролик', 'натяжитель рем', 'обводной ролик', 'обвідний ролик', 'обводний ролик', 'направляючий ролик', 'паразитний ролик', 'ролик паразит', 'заміна ремен', 'замена ремен', 'заміна пас', 'заміна роликів'],
+                'Діагностика ходової 🔍': ['ходов', 'підвіск', 'подвеск', 'діагностика ходов', 'диагностика ходов', 'діагностика підвіск', 'диагностика подвеск', 'амортизат', 'стойк', 'підшипник', 'подшипник', 'опор', 'подушка амортизат', 'відбійник', 'отбойник', 'руль', 'рульов', 'рулев', 'накінечник', 'наконечн', 'тяга руль', 'тяга рулев', 'шаров', 'кульов', 'шарнір', 'шарнир', 'опора шаров', 'стабіліз', 'стабилиз', 'стабілізатор', 'стабилизатор', 'стійка стабіліз', 'рессор', 'ресор', 'сайлентблок', 'сайлент-блок', 'втулк', 'важіль', 'рычаг', 'заміна ходов', 'замена ходов', 'ремонт ходов', 'ремонт підвіск', 'ремонт подвеск'],
+                'Розвал-сходження 📐': ['розвал', 'развал', 'схож', 'сходж', 'зходжен', 'сходжен', 'розвал-схож', 'развал-сход', 'розвал схож', 'развал сход', 'геометрія', 'геометрия', 'геометрія коліс', 'геометрия колес', 'регулювання кут', 'регулировка угл', 'регулювання розвал', 'регулировка развал', 'перевірка кут', 'проверка угл', 'перевірка геометр', 'проверка геометр', 'кути установ', 'углы установ', 'кути коліс', 'углы колес', 'заміри розвал', 'замеры развал', 'вимірювання кут', 'измерение угл'],
+                'Профілактика направляючих супортів 🛠️': ['супорт', 'суппорт', 'направ', 'направляюч', 'направляющ', 'напрямн', 'торм', 'гальм', 'тормоз', 'профілактика супорт', 'профилактика супорт', 'ремонт супорт', 'ремонт суппорт', 'чистка супорт', 'чистка суппорт', 'обслуговування супорт', 'обслуживание супорт', 'ремкомплект супорт', 'ремкомплект суппорт', 'ремкомплект напрям', 'ремкомплект направ', 'напрямні супорт', 'направляючі супорт', 'направляющие супорт', 'пальці супорт', 'пальцы супорт', 'змащення супорт', 'смазка супорт', 'змазка супорт', 'мастило супорт', 'заміна супорт', 'замена супорт', 'заміна напрям', 'замена направ'],
+                "Компютерна діагностика 💻": ['компь', 'комп', "комп'ю", 'компю', 'компютер', "комп'ютер", 'компьютер', 'компютерна', "комп'ютерна", 'компьютерная', 'компютерна діагност', 'компьютерная диагност', 'діагностика електричн', 'диагностика електричн', 'сканування', 'сканирование', 'зчитування', 'считывание', 'зчитування помилок', 'считывание ошибок', 'читання помилок', 'чтение ошибок', 'екб', 'эбу', 'ecu', 'блок керування', 'блок управления', 'блок управління', 'прошивка', 'прошивк', 'чіп', 'chip', 'тюнінг', 'тюнинг', 'чіптюнінг', 'чип-тюнинг', 'помилк', 'ошибк', 'код помилок', 'код ошибок', 'скидання помилок', 'сброс ошибок', 'obd', 'obd2', 'obdii'],
+                'Прожиг сажового фільтру 🔥': ['прожиг', 'прожы', 'пропал', 'випал', 'выжиг', 'регене', 'регенерація', 'регенерация', 'регенерація саж', 'регенерация саж', 'саже', 'сажі', 'сажов', 'сажев', 'сажовий', 'сажевый', 'сажевий фільтр', 'сажевый фильтр', 'dpf', 'дпф', 'particulate filter', 'diesel particulate', 'чистка саж', 'чистка dpf', 'очистка саж', 'очистка dpf', 'видалення саж', 'удаление саж', 'вимивання саж', 'забитий саж', 'забит саж', 'забився dpf', 'забился dpf', 'засмічений саж', 'заміна саж', 'замена саж', 'заміна dpf', 'замена dpf', 'примусова регенер', 'принудительная регенер', 'forced regeneration'],
+                'Гальмівні диски передні💿': ['диск перед', 'диски перед', 'дисків перед', 'дисками перед', 'гальмівн диск перед', 'гальмівні диск перед', 'тормозн диск перед', 'тормозные диск перед', 'заміна диск перед', 'замена диск перед', 'заміна гальмівн диск перед', 'замена тормозн диск перед', 'диск передн вісь', 'диск передн ось', 'диски на перед', 'диски спереду'],
+                'Гальмівні диски задні💿': ['диск зад', 'диски зад', 'дисків зад', 'дисками зад', 'гальмівн диск зад', 'гальмівні диск зад', 'тормозн диск зад', 'тормозные диск зад', 'заміна диск зад', 'замена диск зад', 'заміна гальмівн диск зад', 'замена тормозн диск зад', 'диск задн вісь', 'диск задн ось', 'диски на зад', 'диски ззаду', 'диски позаду'],
+                'Гальмівні колодки передні🛑': ['колодк перед', 'колодки перед', 'колодок перед', 'колодками перед', 'гальмівн колодк перед', 'гальмівні колодк перед', 'тормозн колодк перед', 'тормозные колодк перед', 'заміна колодк перед', 'замена колодк перед', 'заміна гальмівн колодк перед', 'замена тормозн колодк перед', 'колодк передн вісь', 'колодк передн ось', 'колодки на перед', 'колодки спереду', 'накладк перед', 'накладки гальмівн перед', 'фрикційн накладк перед', 'колодки стерли перед', 'колодки зношен перед', 'колодки износ перед'],
+                'Гальмівні колодки задні🛑': ['колодк зад', 'колодки зад', 'колодок зад', 'колодками зад', 'гальмівн колодк зад', 'гальмівні колодк зад', 'тормозн колодк зад', 'тормозные колодк зад', 'заміна колодк зад', 'замена колодк зад', 'заміна гальмівн колодк зад', 'замена тормозн колодк зад', 'колодк задн вісь', 'колодк задн ось', 'колодки на зад', 'колодки ззаду', 'колодки позаду', 'накладк зад', 'накладки гальмівн зад', 'фрикційн накладк зад', 'колодки стерли зад', 'колодки зношен зад', 'колодки износ зад'],
+                'Гальмівні колодки ручного гальма🛑': ['колодк ручн', 'колодки ручн', 'колодок ручн', 'гальмівн колодк ручн', 'тормозн колодк ручн', 'колодк стоянков', 'колодки стоянков', 'колодк стояночн', 'колодки стояночн', 'заміна колодк ручн', 'замена колодк ручн', 'замена стояночн', 'колодки барабан', 'барабанн колодк'],
+                'Амортизатори передні🔧': ['аморт перед', 'амортизатор перед', 'амортизатори перед', 'амортизаторів перед', 'амортизаторами перед', 'заміна аморт перед', 'замена аморт перед', 'заміна амортизатор перед', 'замена амортизатор перед', 'амортизатор передн вісь', 'амортизатор передн ось', 'аморти на перед', 'аморти спереду', 'стойк підвіск перед', 'стойки подвеск перед', 'стійка підвіски передн', 'газомасл аморт перед', 'масл аморт перед', 'газов аморт перед', 'ремонт аморт перед', 'ремонт стойк перед', 'відновлення аморт перед'],
+                'Амортизатори задні🔧': ['аморт зад', 'амортизатор зад', 'амортизатори зад', 'амортизаторів зад', 'амортизаторами зад', 'заміна аморт зад', 'замена аморт зад', 'заміна амортизатор зад', 'замена амортизатор зад', 'заміна стойк зад', 'замена стоек зад', 'амортизатор задн вісь', 'амортизатор задн ось', 'аморти на зад', 'аморти ззаду', 'аморти позаду', 'стойк підвіск зад', 'стойки подвеск зад', 'стійка підвіски задн', 'газомасл аморт зад', 'масл аморт зад', 'газов аморт зад', 'ремонт аморт зад', 'ремонт стойк зад', 'відновлення аморт зад'],
+                'Опора амортизаторів 🛠️': ['опор аморт', 'опора аморт', 'опори аморт', 'опор стойк', 'опора стійк', 'подушк аморт', 'подушка аморт', 'подушки аморт', 'подушк стойк', 'подушка стійк', 'заміна опор аморт', 'замена опор аморт', 'заміна подушк аморт', 'замена подушк аморт', 'верхн опор аморт', 'верхняя опор аморт', 'нижн опор аморт', 'нижня опор аморт', 'відбійник', 'отбойник', 'буфер аморт', 'буфер стойк'],
+                'Шарова опора ⚪': ['шаров', 'кульов', 'шарова опор', 'шаровая опор', 'кульова опор', 'опор шаров', 'опора шаров', 'шаров шарнір', 'шаровой шарнир', 'кульов шарнір', 'заміна шаров', 'замена шаров', 'заміна кульов', 'ремонт шаров', 'верхн шаров', 'верхняя шаров', 'нижн шаров', 'нижня шаров'],
+                'Рульова тяга 🔗': ['рульов тяг', 'рулев тяг', 'тяга руль', 'тяга руле', 'тяги руль', 'заміна рульов тяг', 'замена рулев тяг', 'заміна тяг руль', 'замена тяг руль'],
+                'Рульовий накінечник 🔩': ['наконечник', 'накінечник', 'рульов наконечник', 'рулев наконечник', 'рульовий накінечник', 'рулевой наконечник', 'наконечник руль', 'накінечник руль', 'заміна наконечник', 'замена наконечник', 'заміна накінечник', 'заміна рульов наконечник', 'замена рулев наконечник', 'прав наконечник', 'правый наконечник', 'лів наконечник', 'левый наконечник'],
+                'Зчеплення ⚙️': ['зчеплен', 'сцеплен', 'сцепление', 'зчіпленн', 'комплект зчеплен', 'комплект сцеплен', 'ремкомплект зчеплен', 'ремкомплект сцеплен', 'кіт зчеплен', 'диск зчеплен', 'диск сцеплен', 'ведений диск', 'ведомый диск', 'фрикційн диск', 'корзин зчеплен', 'корзина зчеплен', 'корзина сцеплен', 'кошик зчеплен', 'ведучий диск', 'ведущий диск', 'нажимн диск', 'вижимн', 'выжимн', 'випускн підшипник', 'выжимной подшипник', 'підшипник зчеплен', 'подшипник сцеплен', 'маховик', 'маховика', 'двомас маховик', 'двухмасс маховик', 'flywheel', 'заміна зчеплен', 'замена сцеплен', 'ремонт зчеплен', 'ремонт сцеплен'],
+                'Стартер 🔋': ['стартер', 'стартера', 'заміна стартер', 'замена стартер', 'ремонт стартер', 'відновлення стартер', 'перевірка стартер', 'бендикс', 'бендікс', 'обгінна муфта', 'обгонная муфта', 'втягуюч', 'втягивающ', 'реле стартер', 'соленоїд стартер', 'соленоид стартер', 'щітки стартер', 'щетки стартер', 'щітковий вузол', 'щеточный узел'],
+                'Генератор ⚡': ['генератор', 'генератора', 'заміна генератор', 'замена генератор', 'ремонт генератор', 'відновлення генератор', 'перевірка генератор', 'муфт генератор', 'муфта генератор', 'обгінна муфта генератор', 'обгонная муфта генератор', 'шків генератор', 'шкив генератор', 'регулятор генератор', 'регулятор напруг', 'регулятор напряжен', 'реле-регулятор', 'діодн міст', 'диодный мост', 'випрямляч', 'выпрямител', 'щітки генератор', 'щетки генератор'],
+                'Акумулятор 🔋': ['акб', 'акумулятор', 'акумуль', 'аккумулятор', 'батаре', 'батарея', 'батарії', 'акумуляторн батаре', 'аккумуляторн батаре', 'акумуляторна батарея', 'аккумуляторная батарея', 'заміна акб', 'замена акб', 'заміна акумулятор', 'замена аккумулятор', 'заміна батаре'],
+                'Свічки запалювання 🔥': ['свічк', 'свеч', 'свіч', 'свічк запалюван', 'свеч зажиган', 'свічка запалення', 'свеча зажигания', 'заміна свічок', 'замена свечей', 'заміна свіч', 'замена свеч', 'іридієв свічк', 'иридиев свеч', 'платинов свічк', 'платинов свеч']
+            },
+            PARTS_MAPPING: {
+                'ТО (масло+фільтри) 🛢️': 'ТО (масло+фільтри)',
+                'ГРМ (ролики+ремінь) ⚙️': 'ГРМ (ролики+ремінь)',
+                'Помпа 💧': 'Помпа',
+                'Обвідний ремінь+ролики 🔧': 'Обвідний ремінь+ролики',
+                'Діагностика ходової 🔍': 'Діагностика ходової',
+                'Розвал-сходження 📐': 'Розвал-сходження',
+                'Профілактика направляючих супортів 🛠️': 'Профілактика направляючих супортів',
+                "Компютерна діагностика 💻": "Компютерна діагностика",
+                'Прожиг сажового фільтру 🔥': 'Прожиг сажового фільтру',
+                'Гальмівні диски передні💿': 'Гальмівні диски передні',
+                'Гальмівні диски задні💿': 'Гальмівні диски задні',
+                'Гальмівні колодки передні🛑': 'Гальмівні колодки передні',
+                'Гальмівні колодки задні🛑': 'Гальмівні колодки задні',
+                'Гальмівні колодки ручного гальма🛑': 'Гальмівні колодки ручного гальма',
+                'Амортизатори передні🔧': 'Амортизатори передні',
+                'Амортизатори задні🔧': 'Амортизатори задні',
+                'Опора амортизаторів 🛠️': 'Опора амортизаторів',
+                'Шарова опора ⚪': 'Шарова опора',
+                'Рульова тяга 🔗': 'Рульова тяга',
+                'Рульовий накінечник 🔩': 'Рульовий накінечник',
+                'Зчеплення ⚙️': 'Зчеплення',
+                'Стартер 🔋': 'Стартер',
+                'Генератор ⚡': 'Генератор',
+                'Акумулятор 🔋': 'Акумулятор',
+                'Свічки запалювання 🔥': 'Свічки запалювання'
+            }
+        };
+    </script>
+    <script>
+        // Забезпечуємо закріплення фільтрів при прокрутці (як на головній сторінці)
+        function initStickyFilters() {
+            const header = document.querySelector('#main-interface > div:first-child');
+            const filtersPanel = document.getElementById('sticky-filters-panel');
+            const filtersSpacer = document.getElementById('filters-spacer');
+
+            if (!header || !filtersPanel || !filtersSpacer) {
+                setTimeout(initStickyFilters, 100);
+                return;
+            }
+
+            let filtersInitialTop = 0;
+            let isFixed = false;
+
+            // Функція для обчислення початкової позиції
+            const calculateInitialPosition = () => {
+                const filtersRect = filtersPanel.getBoundingClientRect();
+                filtersInitialTop = filtersRect.top + (window.pageYOffset || document.documentElement.scrollTop);
+            };
+
+            // Функція для оновлення позицій
+            const updatePositions = (shouldBeFixed) => {
+                try {
+                    if (!filtersPanel || !filtersSpacer) return;
+
+                    const filtersHeight = filtersPanel.offsetHeight;
+
+                    if (shouldBeFixed && !isFixed) {
+                        // Закріплюємо фільтри вгорі екрана
+                        filtersPanel.classList.add('fixed');
+                        filtersPanel.style.setProperty('top', '0', 'important');
+                        filtersPanel.style.setProperty('left', '0', 'important');
+                        filtersPanel.style.setProperty('right', '0', 'important');
+                        filtersPanel.style.setProperty('width', '100%', 'important');
+
+                        // Оновлюємо spacer для фільтрів
+                        filtersSpacer.style.setProperty('height', `${filtersHeight}px`, 'important');
+
+                        isFixed = true;
+                    } else if (!shouldBeFixed && isFixed) {
+                        // Повертаємо до нормального стану
+                        filtersPanel.classList.remove('fixed');
+                        filtersPanel.style.removeProperty('top');
+                        filtersPanel.style.removeProperty('left');
+                        filtersPanel.style.removeProperty('right');
+                        filtersPanel.style.removeProperty('width');
+
+                        filtersSpacer.style.setProperty('height', '0', 'important');
+
+                        isFixed = false;
+                    }
+
+                    // Оновлюємо spacer, якщо вони fixed
+                    if (isFixed) {
+                        const currentFiltersHeight = filtersPanel.offsetHeight;
+                        filtersSpacer.style.setProperty('height', `${currentFiltersHeight}px`, 'important');
+                    }
+                } catch (error) {
+                    console.error('Помилка в updatePositions:', error);
+                }
+            };
+
+            // Обчислюємо початкову позицію після невеликої затримки
+            setTimeout(() => {
+                calculateInitialPosition();
+            }, 100);
+
+            // Створюємо обробник прокрутки
+            const scrollHandler = () => {
+                try {
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    const shouldBeFixed = scrollTop >= filtersInitialTop;
+                    updatePositions(shouldBeFixed);
+                } catch (error) {
+                    console.error('Помилка в обробнику прокрутки:', error);
+                }
+            };
+
+            // Оновлюємо позиції при зміні розміру вікна
+            const resizeHandler = () => {
+                try {
+                    calculateInitialPosition();
+                    if (isFixed) {
+                        updatePositions(true);
+                    }
+                } catch (error) {
+                    console.error('Помилка в обробнику зміни розміру:', error);
+                }
+            };
+
+            window.addEventListener('scroll', scrollHandler, { passive: true });
+            window.addEventListener('resize', resizeHandler, { passive: true });
+
+            // Використовуємо ResizeObserver для моніторингу зміни розміру фільтрів
+            if (window.ResizeObserver) {
+                const resizeObserver = new ResizeObserver(() => {
+                    if (isFixed) {
+                        updatePositions(true);
+                    }
+                });
+                resizeObserver.observe(filtersPanel);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const mainInterface = document.getElementById('main-interface');
+            if (mainInterface) {
+                // Спостерігаємо за показом main-interface
+                const observer = new MutationObserver(() => {
+                    if (!mainInterface.classList.contains('hidden')) {
+                        setTimeout(initStickyFilters, 200);
+                    }
+                });
+                observer.observe(mainInterface, { attributes: true, attributeFilter: ['class'] });
+
+                // Якщо вже видимий
+                if (!mainInterface.classList.contains('hidden')) {
+                    setTimeout(initStickyFilters, 200);
+                }
+            }
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('✅ Service Worker registered:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('❌ Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>

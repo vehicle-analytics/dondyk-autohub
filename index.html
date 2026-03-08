@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dondyk AutoHub • AI-панель по обслуговуванню авто</title>
+    <meta name="description" content="Аналітична панель по обслуговуванню автомобілів">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#1e40af" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="Logo.png">
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Preconnect to CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="Logo.png" as="image">
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="config/partsConfig.js" as="script">
+    <link rel="preload" href="app.js" as="script">
+
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Instant Loading Script (Stale-While-Revalidate) -->
+    <script>
+        // Негайно приховуємо екран завантаження, якщо є кеш
+        if (localStorage.getItem("carAnalyticsData")) {
+            document.documentElement.classList.add('has-cache');
+        }
+    </script>
+    <style>
+        html.has-cache #loading-screen {
+            display: none !important;
+        }
+
+        html.has-cache #main-interface {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
+</head>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = { darkMode: false, theme: { extend: {} } }
+</script>
+<!-- Shared configuration - load first -->
+<script src="config/partsConfig.js"></script>
+
+<!-- Critical modules - defer to avoid render blocking -->
+<script src="utils/formatters.js" defer></script>
+<script src="cache/cacheManager.js" defer></script>
+
+<!-- Data processing modules -->
+<script src="data/dataProcessor.js" defer></script>
+<script src="processing/carProcessor.js" defer></script>
+<script src="filters/carFilters.js" defer></script>
+
+<!-- Analytics and features - lazy load -->
+<script src="analytics/statsCalculator.js" defer></script>
+<script src="expense-categories.js" defer></script>
+<script src="breakdown-frequency-analysis.js" defer></script>
+<script src="car-wash-recommendations.js" defer></script>
+<script src="parts-purchase-forecast.js" defer></script>
+<script src="car-recommendations.js" defer></script>
+<script src="maintenance-forecast.js" defer></script>
+
+<!-- Main app - load last -->
+<script src="app.js" defer></script>
+<style>
+    /* Магічна кнопка Аналітика */
+    .magic-analytics-button {
+        display: inline-block;
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #f97316 100%);
+        background-size: 200% 200%;
+        color: #ffffff;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 0;
+        padding: 18px 36px;
+        font-weight: 700;
+        font-size: 18px;
+        position: relative;
+        overflow: hidden;
+        text-decoration: none;
+        white-space: nowrap;
+        box-shadow:
+            0 8px 24px rgba(245, 158, 11, 0.5),
+            0 4px 12px rgba(217, 119, 6, 0.3),
+            inset 0 2px 4px rgba(255, 255, 255, 0.2);
+        animation: gradient-shift 3s ease infinite;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .magic-analytics-button:hover {
+        transform: translateY(-6px) scale(1.08);
+        box-shadow:
+            0 16px 40px rgba(245, 158, 11, 0.7),
+            0 8px 20px rgba(217, 119, 6, 0.5),
+            inset 0 2px 8px rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    .magic-analytics-button:active {
+        transform: translateY(-2px) scale(1.04);
+    }
+
+    @keyframes gradient-shift {
+
+        0%,
+        100% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .magic-analytics-button {
+            padding: 14px 24px;
+            font-size: 14px;
+        }
+    }
+
+    /* Компактна версія кнопки Аналітика */
+    .magic-analytics-button-compact {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #f97316;
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        font-weight: 700;
+        font-size: 13px;
+        text-decoration: none;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        transition: all 0.2s ease;
+    }
+
+    .magic-analytics-button-compact::before {
+        content: '📊';
+        flex-shrink: 0;
+    }
+
+    .magic-analytics-button-compact:hover {
+        background: #ea580c;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        transform: translateY(-1px);
+    }
+
+    .magic-analytics-button-compact:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    }
+</style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="loading-screen" class="min-h-screen flex flex-col items-center justify-center p-4">
+            <div class="text-center max-w-md">
+                <picture>
+                    <img src="Logo.png" alt="AutoHub" class="h-16 mx-auto mb-4"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                </picture>
+                <div class="text-4xl mb-4" style="display:none;">🚗</div>
+                <h1 class="text-2xl font-bold text-white mb-2">Аналітична панель</h1>
+                <p class="text-blue-200 text-sm mb-6">по обслуговуванню автомобілів</p>
+                <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="text-blue-300">⏳</div>
+                        <div class="flex-1">
+                            <div class="text-white text-sm font-medium">Завантаження даних...</div>
+                            <div class="text-blue-200 text-xs">Будь ласка, зачекайте</div>
+                        </div>
+                    </div>
+                    <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                        <div id="loading-bar"
+                            class="h-full bg-gradient-to-r from-blue-400 to-blue-300 transition-all duration-300"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="mt-4 text-blue-100 text-xs">
+                    <div>⏱️ Останнє оновлення: <span id="last-update">-</span></div>
+                    <div>📊 Кількість авто: <span id="cars-count">-</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="main-interface" class="hidden">
+            <!-- Skeleton loading state -->
+            <div id="skeleton-loader" class="skeleton-container">
+                <div class="skeleton-header"></div>
+                <div class="skeleton-filters"></div>
+                <div class="skeleton-grid">
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="modals-container"></div>
+
+        <footer class="mt-4 py-2 text-center text-blue-200 text-xs border-t border-blue-800/30">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex items-center justify-center gap-2 mb-1">
+                    <p>Dondyk AutoHub • AI-панель по обслуговуванню авто</p>
+                </div>
+                <div id="footer-update-info">
+                    <p class="mt-0.5 text-xs opacity-70">© 2026 • Версія 6.0 • Оновлення щодня о 06:00</p>
+                </div>
+                <div class="mt-1 flex justify-center gap-2 text-xs">
+                    <button id="refresh-data"
+                        class="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 rounded transition-colors text-xs">
+                        🔄 Оновити
+                    </button>
+                    <button id="clear-cache"
+                        class="px-2 py-0.5 bg-gray-700 hover:bg-gray-600 rounded transition-colors text-xs">
+                        🗑️ Очистити
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Базовий URL для API - завжди використовуємо той самий домен/порт
+        // Якщо API недоступне, автоматично використовується fallback на Google Sheets
+        window.API_BASE_URL = '';
+
+        window.CONFIG = {
+            API_KEY: 'AIzaSyCcJ4qsKeLtMBAFp8jXDIAiyb3Cpp4OrCQ',
+            SPREADSHEET_ID: '12-Z-tmRcjNLv7m8eFP_9rwCCERqPHCV9iVIdtL2vDck',
+            SHEETS: {
+                SCHEDULE: 'ГРАФІК ОБСЛУГОВУВАННЯ',
+                HISTORY: 'Ответы на форму (1)',
+                REGULATIONS: 'Регламент ТО',
+                PHOTO_ASSESSMENT: 'Оцінка авто фото'
+            },
+            REFRESH_TIME: '06:00',
+            DEBUG: window.location.hostname === 'localhost'
+        };
+
+        window.CONSTANTS = {
+            SCHEDULE_COL_CITY: 1,
+            SCHEDULE_COL_LICENSE: 2,
+            SCHEDULE_COL_MODEL: 3,
+            SCHEDULE_COL_YEAR: 4,
+            SCHEDULE_COL_VIN: 5,
+
+            COL_DATE: 0,
+            COL_CITY: 2,
+            COL_CAR: 3,
+            COL_MILEAGE: 4,
+            COL_DESCRIPTION: 6,
+            COL_PART_CODE: 7,
+            COL_DATE_NEEDED: 9,
+            COL_UNIT: 11,
+            COL_QUANTITY: 12,
+            COL_PRICE: 13,
+            COL_TOTAL_WITH_VAT: 15,
+            COL_STATUS: 16,
+
+            PARTS_ORDER: [
+                'ТО (масло+фільтри) 🛢️',
+                'ГРМ (ролики+ремінь) ⚙️',
+                'Помпа 💧',
+                'Обвідний ремінь+ролики 🔧',
+                'Діагностика ходової 🔍',
+                'Розвал-сходження 📐',
+                'Профілактика направляючих супортів 🛠️',
+                "Компютерна діагностика 💻",
+                'Прожиг сажового фільтру 🔥',
+                'Свічки запалювання 🔥',
+                'Гальмівні диски передні💿',
+                'Гальмівні диски задні💿',
+                'Гальмівні колодки передні🛑',
+                'Гальмівні колодки задні🛑',
+                'Гальмівні колодки ручного гальма🛑',
+                'Амортизатори передні🔧',
+                'Амортизатори задні🔧',
+                'Опора амортизаторів 🛠️',
+                'Шарова опора ⚪',
+                'Рульова тяга 🔗',
+                'Рульовий накінечник 🔩',
+                'Зчеплення ⚙️',
+                'Стартер 🔋',
+                'Генератор ⚡',
+                'Акумулятор 🔋'
+            ],
+
+            // PARTS_CONFIG is loaded from shared config file (config/partsConfig.js)
+            PARTS_CONFIG: typeof PARTS_CONFIG !== 'undefined' ? PARTS_CONFIG : {},
+
+            PARTS_MAPPING: {
+                'ТО (масло+фільтри) 🛢️': 'ТО (масло+фільтри)',
+                'ГРМ (ролики+ремінь) ⚙️': 'ГРМ (ролики+ремінь)',
+                'Помпа 💧': 'Помпа',
+                'Обвідний ремінь+ролики 🔧': 'Обвідний ремінь+ролики',
+                'Діагностика ходової 🔍': 'Діагностика ходової',
+                'Розвал-сходження 📐': 'Розвал-сходження',
+                'Профілактика направляючих супортів 🛠️': 'Профілактика направляючих супортів',
+                "Компютерна діагностика 💻": "Компютерна діагностика",
+                'Прожиг сажового фільтру 🔥': 'Прожиг сажового фільтру',
+                'Гальмівні диски передні💿': 'Гальмівні диски передні',
+                'Гальмівні диски задні💿': 'Гальмівні диски задні',
+                'Гальмівні колодки передні🛑': 'Гальмівні колодки передні',
+                'Гальмівні колодки задні🛑': 'Гальмівні колодки задні',
+                'Гальмівні колодки ручного гальма🛑': 'Гальмівні колодки ручного гальма',
+                'Амортизатори передні🔧': 'Амортизатори передні',
+                'Амортизатори задні🔧': 'Амортизатори задні',
+                'Опора амортизаторів 🛠️': 'Опора амортизаторів',
+                'Шарова опора ⚪': 'Шарова опора',
+                'Рульова тяга 🔗': 'Рульова тяга',
+                'Рульовий накінечник 🔩': 'Рульовий накінечник',
+                'Зчеплення ⚙️': 'Зчеплення',
+                'Стартер 🔋': 'Стартер',
+                'Генератор ⚡': 'Генератор',
+                'Акумулятор 🔋': 'Акумулятор',
+                'Свічки запалювання 🔥': 'Свічки запалювання'
+            }
+        };
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('✅ Service Worker registered:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('❌ Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>

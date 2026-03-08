@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+npm-debug.log*
+
+# Cache files
+data/cached-data.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

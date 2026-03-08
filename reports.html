@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Звіти по обслуговуванню - Dondyk AutoHub</title>
+    <meta name="description" content="Звіти по обслуговуванню автомобілів">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#1e40af" media="(prefers-color-scheme: light)">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="Logo.png">
+
+    <!-- Preconnect to CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <!-- Preload critical resources -->
+    <link rel="preload" href="Logo.png" as="image">
+    <link rel="preload" href="styles.css" as="style">
+
+    <link rel="stylesheet" href="styles.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'media', theme: { extend: {} } }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <!-- Shared configuration -->
+    <script src="config/partsConfig.js"></script>
+    <!-- Модулі утиліт та обробки даних -->
+    <script src="utils/formatters.js" defer></script>
+    <script src="cache/cacheManager.js" defer></script>
+    <!-- Data Modules -->
+    <script src="data/dataProcessor.js" defer></script>
+    <script src="processing/carProcessor.js" defer></script>
+    <script src="filters/carFilters.js" defer></script>
+    <script src="analytics/statsCalculator.js" defer></script>
+    <script src="reports/maintenanceReports.js" defer></script>
+    <script src="reports/reportsUI.js" defer></script>
+
+    <!-- Instant Loading Script (Stale-While-Revalidate) -->
+    <script>
+        if (localStorage.getItem("carAnalyticsData")) {
+            document.documentElement.classList.add('has-cache');
+        }
+    </script>
+    <style>
+        html.has-cache #loading-screen {
+            display: none !important;
+        }
+
+        html.has-cache #main-interface {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
+</head>
+<style>
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    .report-table th,
+    .report-table td {
+        padding: 8px 6px;
+        text-align: center;
+        border-bottom: 1px solid #e5e7eb;
+        vertical-align: middle;
+        font-size: 12px;
+    }
+
+    .report-table th {
+        background-color: #f3f4f6;
+        font-weight: 600;
+        color: #1f2937;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        text-align: center;
+        line-height: 1.3;
+    }
+
+    .report-table th .th-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        min-height: 60px;
+    }
+
+    .report-table th .th-emoji {
+        font-size: 18px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+    .report-table th .th-text {
+        font-size: 11px;
+        line-height: 1.2;
+        white-space: normal;
+        word-break: break-word;
+        text-align: center;
+        max-height: 2.4em;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    /* Ширини стовпців - звужені */
+    .report-table th:first-child,
+    .report-table td:first-child {
+        width: 45px;
+        min-width: 45px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(2),
+    .report-table td:nth-child(2) {
+        width: 110px;
+        min-width: 110px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(3),
+    .report-table td:nth-child(3) {
+        width: 100px;
+        min-width: 100px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(4),
+    .report-table td:nth-child(4) {
+        width: 160px;
+        min-width: 160px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(5),
+    .report-table td:nth-child(5) {
+        width: 110px;
+        min-width: 110px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(6),
+    .report-table td:nth-child(6) {
+        width: 130px;
+        min-width: 130px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(7),
+    .report-table td:nth-child(7) {
+        width: 100px;
+        min-width: 100px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(8),
+    .report-table td:nth-child(8) {
+        width: 100px;
+        min-width: 100px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(9),
+    .report-table td:nth-child(9) {
+        width: 130px;
+        min-width: 130px;
+        text-align: center;
+    }
+
+    .report-table th:nth-child(10),
+    .report-table td:nth-child(10) {
+        width: 170px;
+        min-width: 170px;
+        text-align: center;
+    }
+
+    .report-table td {
+        text-align: center;
+        font-size: 12px;
+    }
+
+    /* Спеціальне форматування для числових значень */
+    .report-table td:nth-child(5),
+    .report-table td:nth-child(7) {
+        font-weight: 500;
+    }
+
+    /* Адаптивність для малих екранів */
+    @media (max-width: 1400px) {
+        .report-table th .th-text {
+            font-size: 11px;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: 8px 6px;
+            font-size: 12px;
+        }
+
+        .report-table td {
+            font-size: 12px;
+        }
+    }
+
+    @media (max-width: 1200px) {
+        .report-table th .th-emoji {
+            font-size: 18px;
+        }
+
+        .report-table th .th-text {
+            font-size: 10px;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: 6px 4px;
+            font-size: 11px;
+        }
+
+        .report-table td {
+            font-size: 11px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .report-table th .th-text {
+            font-size: 9px;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: 5px 3px;
+            font-size: 10px;
+        }
+    }
+
+    .report-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+
+    .status-urgent {
+        background-color: #fee2e2;
+        color: #991b1b;
+        font-weight: 600;
+    }
+
+    .status-warning {
+        background-color: #fef3c7;
+        color: #92400e;
+        font-weight: 600;
+    }
+
+    .status-normal {
+        background-color: #d1fae5;
+        color: #065f46;
+        font-weight: 600;
+    }
+
+    .status-icon {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 6px;
+    }
+
+    .status-icon.urgent {
+        background-color: #dc2626;
+    }
+
+    .status-icon.warning {
+        background-color: #f59e0b;
+    }
+
+    .status-icon.normal {
+        background-color: #10b981;
+    }
+
+    /* Стилі для фільтрів */
+    #part-select,
+    #status-filter,
+    #city-filter {
+        color: #1f2937 !important;
+        background-color: #ffffff !important;
+    }
+
+    #part-select option,
+    #status-filter option,
+    #city-filter option {
+        color: #1f2937 !important;
+        background-color: #ffffff !important;
+    }
+</style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="loading-screen"
+            class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-600 to-indigo-700">
+            <div class="text-center max-w-md">
+                <picture>
+                    <img src="Logo.png" alt="AutoHub" class="h-16 mx-auto mb-4"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                </picture>
+                <div class="text-4xl mb-4" style="display:none;">📊</div>
+                <h1 class="text-2xl font-bold text-white mb-2">Звіти по обслуговуванню</h1>
+                <p class="text-blue-200 text-sm mb-6">Завантаження даних...</p>
+                <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div id="loading-bar"
+                        class="h-full bg-gradient-to-r from-blue-400 to-blue-300 transition-all duration-300"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="main-interface" class="hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-b-xl shadow-xl p-4 mb-6">
+                <div class="max-w-7xl mx-auto px-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <a href="index.html" class="text-white hover:text-blue-100 transition-colors">
+                                    ← Назад до головної
+                                </a>
+                            </div>
+                            <h1 class="text-3xl font-bold text-white mb-2">📊 Звіти по обслуговуванню</h1>
+                            <p class="text-blue-100 text-sm">Формування звітів по основним роботам обслуговування</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="max-w-7xl mx-auto px-4 pb-8">
+                <!-- Фільтри -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Вибір типу роботи -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Тип роботи
+                            </label>
+                            <select id="part-select"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">— Виберіть тип роботи —</option>
+                            </select>
+                        </div>
+
+                        <!-- Фільтр за статусом -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Статус
+                            </label>
+                            <select id="status-filter"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="all">Всі</option>
+                                <option value="urgent">Негайно</option>
+                                <option value="warning">Спланувати</option>
+                                <option value="normal">Норма</option>
+                            </select>
+                        </div>
+
+                        <!-- Фільтр за містом -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Місто
+                            </label>
+                            <select id="city-filter"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="Всі міста">Всі міста</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки експорту -->
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <button id="export-csv"
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                            📥 Експорт CSV
+                        </button>
+                        <button id="export-excel"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                            📊 Експорт Excel
+                        </button>
+                        <button id="print-report"
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                            🖨️ Друк
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Статистика -->
+                <div id="report-stats" class="bg-white rounded-xl shadow-lg p-6 mb-6 hidden">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-red-600" id="stats-urgent">0</div>
+                            <div class="text-sm text-gray-600">Негайно</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-yellow-600" id="stats-warning">0</div>
+                            <div class="text-sm text-gray-600">Спланувати</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-600" id="stats-normal">0</div>
+                            <div class="text-sm text-gray-600">Норма</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-gray-800" id="stats-total">0</div>
+                            <div class="text-sm text-gray-600">Всього</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Таблиця звіту -->
+                <div id="report-container" class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-6">
+                        <div id="report-placeholder" class="text-center text-gray-500 py-12">
+                            <div class="text-4xl mb-4">📋</div>
+                            <p class="text-lg">Виберіть тип роботи для формування звіту</p>
+                        </div>
+                        <div id="report-table-container" class="hidden">
+                            <!-- Заголовок звіту -->
+                            <div id="report-title" class="mb-4 text-center">
+                                <h2 class="text-2xl font-bold text-gray-800" id="report-title-text"></h2>
+                            </div>
+                            <div class="overflow-x-auto w-full"
+                                style="max-width: 100%; -webkit-overflow-scrolling: touch;">
+                                <table class="report-table" style="min-width: 1155px;">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <div class="th-content">№</div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">🏢</span><span
+                                                        class="th-text">Представництво</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">🚗</span><span
+                                                        class="th-text">Держ номер</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">🚙</span><span
+                                                        class="th-text">Модель</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">📊</span><span
+                                                        class="th-text">Поточний одометр</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">📅</span><span
+                                                        class="th-text">Останнє обслуговування</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">📈</span><span
+                                                        class="th-text">Одометр</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">⏳</span><span
+                                                        class="th-text">Залишилося</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">📆</span><span
+                                                        class="th-text">Орієнтовна дата обслуговування</span></div>
+                                            </th>
+                                            <th>
+                                                <div class="th-content"><span class="th-emoji">⚠️</span><span
+                                                        class="th-text">Статус</span></div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="report-table-body">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Базовий URL для API - завжди використовуємо той самий домен/порт
+        // Якщо API недоступне, автоматично використовується fallback на Google Sheets
+        window.API_BASE_URL = '';
+
+        window.CONFIG = {
+            API_KEY: 'AIzaSyCcJ4qsKeLtMBAFp8jXDIAiyb3Cpp4OrCQ',
+            SPREADSHEET_ID: '12-Z-tmRcjNLv7m8eFP_9rwCCERqPHCV9iVIdtL2vDck',
+            SHEETS: {
+                SCHEDULE: 'ГРАФІК ОБСЛУГОВУВАННЯ',
+                HISTORY: 'Ответы на форму (1)',
+                REGULATIONS: 'Регламент ТО',
+                PHOTO_ASSESSMENT: 'Оцінка авто фото'
+            },
+            REFRESH_TIME: '06:00',
+            DEBUG: false
+        };
+
+        // Додаємо CONSTANTS (необхідні для CarProcessor)
+        window.CONSTANTS = {
+            SCHEDULE_COL_CITY: 1,
+            SCHEDULE_COL_LICENSE: 2,
+            SCHEDULE_COL_MODEL: 3,
+            SCHEDULE_COL_YEAR: 4,
+            SCHEDULE_COL_VIN: 5,
+            COL_DATE: 0,
+            COL_CITY: 2,
+            COL_CAR: 3,
+            COL_MILEAGE: 4,
+            COL_DESCRIPTION: 6,
+            COL_PART_CODE: 7,
+            COL_DATE_NEEDED: 9,
+            COL_UNIT: 11,
+            COL_QUANTITY: 12,
+            COL_PRICE: 13,
+            COL_TOTAL_WITH_VAT: 15,
+            COL_STATUS: 16,
+            PARTS_ORDER: [
+                'ТО (масло+фільтри) 🛢️',
+                'ГРМ (ролики+ремінь) ⚙️',
+                'Помпа 💧',
+                'Обвідний ремінь+ролики 🔧',
+                'Діагностика ходової 🔍',
+                'Розвал-сходження 📐',
+                'Профілактика направляючих супортів 🛠️',
+                "Компютерна діагностика 💻",
+                'Прожиг сажового фільтру 🔥',
+                'Свічки запалювання 🔥',
+                'Гальмівні диски передні💿',
+                'Гальмівні диски задні💿',
+                'Гальмівні колодки передні🛑',
+                'Гальмівні колодки задні🛑',
+                'Гальмівні колодки ручного гальма🛑',
+                'Амортизатори передні🔧',
+                'Амортизатори задні🔧',
+                'Опора амортизаторів 🛠️',
+                'Шарова опора ⚪',
+                'Рульова тяга 🔗',
+                'Рульовий накінечник 🔩',
+                'Зчеплення ⚙️',
+                'Стартер 🔋',
+                'Генератор ⚡',
+                'Акумулятор 🔋'
+            ],
+            // PARTS_CONFIG will be loaded from shared config file (config/partsConfig.js)
+            PARTS_CONFIG: typeof PARTS_CONFIG !== 'undefined' ? PARTS_CONFIG : {},
+            PARTS_MAPPING: {}
+        };
+
+        // Перевіряємо, чи CONSTANTS завантажився
+        if (!window.CONSTANTS) {
+            console.error('CONSTANTS не визначений!');
+        } else {
+            console.log('CONSTANTS завантажено успішно');
+        }
+
+        class ReportsApp {
+            constructor() {
+                this.reportsModule = null;
+                this.processedCars = [];
+                this.maintenanceRegulations = [];
+                this.currentReportData = [];
+                this.fullReportData = []; // Зберігаємо повний звіт для фільтрації
+                this.selectedPart = null;
+                this.formatMileage = null;
+                this.formatDate = null;
+            }
+
+            async init() {
+                // Очікуємо завантаження модулів
+                await this.waitForModules();
+
+                // Спочатку завантажуємо дані
+                try {
+                    console.log('🔄 Початок завантаження даних...');
+                    await this.loadData();
+                    console.log('✅ Дані завантажено успішно, processedCars:', this.processedCars?.length || 0);
+                } catch (error) {
+                    console.error('❌ Помилка завантаження даних:', error);
+                    // Якщо не вдалося завантажити, спробуємо завантажити з Google Sheets
+                    if (!this.processedCars || this.processedCars.length === 0) {
+                        console.log('📋 Немає даних, спробуємо завантажити з Google Sheets...');
+                        try {
+                            await this.fetchDataFromSheets();
+                            console.log('✅ Дані успішно завантажено з Google Sheets');
+                        } catch (sheetsError) {
+                            console.error('❌ Не вдалося завантажити дані з Google Sheets:', sheetsError);
+                            alert('Дані про авто не завантажені. Будь ласка, спочатку перейдіть на головну сторінку для завантаження даних, а потім поверніться сюди.');
+                            return; // Зупиняємо ініціалізацію
+                        }
+                    }
+                }
+
+                // Ініціалізуємо модуль звітів (без завантаження даних, вони вже є)
+                this.reportsModule = new MaintenanceReports();
+                // Передаємо дані в модуль, щоб уникнути повторного завантаження
+                this.reportsModule.appData = this.appData;
+                this.reportsModule.processedCars = this.processedCars;
+                this.reportsModule.maintenanceRegulations = this.maintenanceRegulations;
+
+                // Показуємо інтерфейс
+                this.showInterface();
+
+                // Ініціалізуємо UI (після показу інтерфейсу)
+                this.initUI();
+
+                // Якщо дані вже завантажені та вибрано тип роботи, генеруємо звіт
+                // Використовуємо setTimeout, щоб переконатися, що UI вже повністю ініціалізовано
+                setTimeout(() => {
+                    if (this.selectedPart && this.processedCars && this.processedCars.length > 0) {
+                        console.log('🔄 Генеруємо звіт для:', this.selectedPart);
+                        this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err));
+                    } else {
+                        console.log('ℹ️ Звіт не буде згенеровано:', {
+                            selectedPart: this.selectedPart,
+                            processedCars: this.processedCars?.length || 0
+                        });
+                    }
+                }, 300);
+            }
+
+            async waitForModules() {
+                let attempts = 0;
+                const maxAttempts = 100; // Максимум 10 секунд
+                while ((!window.MaintenanceReports || !window.CarProcessor || !window.Formatters || !window.DataProcessor || !window.CacheManager) && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                if (attempts >= maxAttempts) {
+                    console.error('Не вдалося завантажити всі модулі');
+                }
+                console.log('Модулі завантажено:', {
+                    MaintenanceReports: !!window.MaintenanceReports,
+                    CarProcessor: !!window.CarProcessor,
+                    Formatters: !!window.Formatters,
+                    DataProcessor: !!window.DataProcessor,
+                    CacheManager: !!window.CacheManager
+                });
+            }
+
+            async loadData() {
+                try {
+                    // Спочатку перевіряємо кеш
+                    const cached = this.getCachedData();
+                    if (cached && cached.carsInfo && Object.keys(cached.carsInfo).length > 0) {
+                        console.log('✅ Використано кешовані дані');
+                        this.appData = cached;
+                        this.maintenanceRegulations = cached.regulations || [];
+
+                        // Якщо в кеші є processedCars - перевіряємо, чи вони правильно оброблені
+                        if (cached.processedCars && Array.isArray(cached.processedCars) && cached.processedCars.length > 0) {
+                            // Перевіряємо, чи є валідні значення запчастин
+                            const firstCar = cached.processedCars[0];
+                            const partsKeys = firstCar && firstCar.parts ? Object.keys(firstCar.parts) : [];
+                            const partsWithValues = partsKeys.filter(key => {
+                                const val = firstCar.parts[key];
+                                return val !== null && val !== undefined && typeof val === 'object';
+                            });
+                            const hasValidParts = partsWithValues.length > 0;
+
+                            console.log('🔍 Перевірка processedCars з кешу:', {
+                                totalCars: cached.processedCars.length,
+                                firstCarLicense: firstCar?.license,
+                                totalParts: partsKeys.length,
+                                partsWithValues: partsWithValues.length,
+                                hasValidParts: hasValidParts
+                            });
+
+                            if (hasValidParts) {
+                                this.processedCars = cached.processedCars;
+                                console.log(`✅ Використано ${cached.processedCars.length} оброблених автомобілів з кешу`);
+                            } else {
+                                // Якщо всі значення null - переобробляємо дані
+                                console.warn('⚠️ processedCars з кешу мають всі значення null, переобробляємо дані...');
+                                console.log('📊 Дані для переобробки:', {
+                                    recordsCount: cached.records?.length || 0,
+                                    carsInfoCount: Object.keys(cached.carsInfo || {}).length,
+                                    partsOrderCount: cached.partsOrder?.length || 0
+                                });
+
+                                if (window.CarProcessor) {
+                                    this.processedCars = window.CarProcessor.processCarData(
+                                        cached,
+                                        (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
+                                            this.getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license),
+                                        (license, model, year, partName) =>
+                                            this.findRegulationForCar(license, model, year, partName)
+                                    );
+                                    console.log(`✅ Переоброблено ${this.processedCars.length} автомобілів`);
+
+                                    // Діагностика після переобробки
+                                    if (this.processedCars && this.processedCars.length > 0) {
+                                        const firstCar = this.processedCars[0];
+                                        const partsWithValues = firstCar.parts ? Object.keys(firstCar.parts).filter(key => {
+                                            const val = firstCar.parts[key];
+                                            return val !== null && val !== undefined && typeof val === 'object';
+                                        }) : [];
+                                        console.log('📊 Перше авто після переобробки:', {
+                                            license: firstCar.license,
+                                            totalParts: firstCar.parts ? Object.keys(firstCar.parts).length : 0,
+                                            partsWithValues: partsWithValues.length,
+                                            sampleParts: partsWithValues.slice(0, 5)
+                                        });
+
+                                        if (partsWithValues.length === 0 && firstCar.parts && Object.keys(firstCar.parts).length > 0) {
+                                            console.error('❌ КРИТИЧНА ПОМИЛКА: Після переобробки всі значення запчастин все ще null!');
+                                            console.error('Перевірте, чи є записи в cached.records:', cached.records?.length || 0);
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Якщо немає processedCars - обробляємо дані
+                            if (window.CarProcessor) {
+                                console.log('🔧 Обробляємо дані через CarProcessor (з кешу)...');
+                                this.processedCars = window.CarProcessor.processCarData(
+                                    cached,
+                                    (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
+                                        this.getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license),
+                                    (license, model, year, partName) =>
+                                        this.findRegulationForCar(license, model, year, partName)
+                                );
+                                console.log(`✅ Оброблено ${this.processedCars.length} автомобілів`);
+                            }
+                        }
+
+                        // Отримуємо функції форматування
+                        if (window.Formatters) {
+                            this.formatMileage = window.Formatters.formatMileage;
+                            this.formatDate = window.Formatters.formatDate;
+                        }
+
+                        // Оновлюємо дані в модулі
+                        if (this.reportsModule) {
+                            this.reportsModule.processedCars = this.processedCars;
+                            this.reportsModule.appData = this.appData;
+                            this.reportsModule.maintenanceRegulations = this.maintenanceRegulations;
+                        }
+
+                        // Оновлюємо фільтри після завантаження даних
+                        this.updateCityFilter();
+
+                        // Якщо вже вибрано тип роботи, генеруємо звіт
+                        if (this.selectedPart) {
+                            this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err));
+                        }
+
+                        // Оновлюємо дані в фоні
+                        this.loadDataFromAPI().catch(err => {
+                            console.warn('⚠️ Не вдалося оновити дані з API:', err);
+                        });
+                        return;
+                    }
+
+                    // Якщо кешу немає - завантажуємо з API
+                    await this.loadDataFromAPI();
+                } catch (error) {
+                    console.error('Помилка завантаження даних:', error);
+                    // Якщо API не працює, спробуємо кеш ще раз
+                    const cached = this.getCachedData();
+                    if (cached && cached.carsInfo && Object.keys(cached.carsInfo).length > 0) {
+                        console.log('✅ Використано кешовані дані після помилки API');
+                        this.appData = cached;
+                        this.maintenanceRegulations = cached.regulations || [];
+                        // Перевіряємо, чи processedCars з кешу мають валідні значення
+                        if (cached.processedCars && Array.isArray(cached.processedCars) && cached.processedCars.length > 0) {
+                            const firstCar = cached.processedCars[0];
+                            const hasValidParts = firstCar && firstCar.parts && Object.keys(firstCar.parts).some(key => {
+                                const val = firstCar.parts[key];
+                                return val !== null && val !== undefined && typeof val === 'object';
+                            });
+
+                            if (hasValidParts) {
+                                this.processedCars = cached.processedCars;
+                                console.log(`✅ Використано ${cached.processedCars.length} оброблених автомобілів з кешу (після помилки API)`);
+                            } else {
+                                console.warn('⚠️ processedCars з кешу мають всі значення null, переобробляємо дані...');
+                                if (window.CarProcessor) {
+                                    this.processedCars = window.CarProcessor.processCarData(
+                                        cached,
+                                        (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
+                                            this.getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license),
+                                        (license, model, year, partName) =>
+                                            this.findRegulationForCar(license, model, year, partName)
+                                    );
+                                    console.log(`✅ Переоброблено ${this.processedCars.length} автомобілів (після помилки API)`);
+                                }
+                            }
+                        } else if (window.CarProcessor) {
+                            // Якщо немає processedCars - обробляємо дані
+                            console.log('🔧 Обробляємо дані через CarProcessor (після помилки API)...');
+                            this.processedCars = window.CarProcessor.processCarData(
+                                cached,
+                                (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
+                                    this.getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license),
+                                (license, model, year, partName) =>
+                                    this.findRegulationForCar(license, model, year, partName)
+                            );
+                            console.log(`✅ Оброблено ${this.processedCars.length} автомобілів (після помилки API)`);
+                        }
+
+                        // Отримуємо функції форматування
+                        if (window.Formatters) {
+                            this.formatMileage = window.Formatters.formatMileage;
+                            this.formatDate = window.Formatters.formatDate;
+                        }
+
+                        // Оновлюємо дані в модулі
+                        if (this.reportsModule) {
+                            this.reportsModule.processedCars = this.processedCars;
+                            this.reportsModule.appData = this.appData;
+                            this.reportsModule.maintenanceRegulations = this.maintenanceRegulations;
+                        }
+
+                        // Оновлюємо фільтри після завантаження даних
+                        this.updateCityFilter();
+
+                        // Якщо вже вибрано тип роботи, генеруємо звіт
+                        if (this.selectedPart) {
+                            this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err));
+                        }
+                    } else {
+                        // Якщо кешу немає, спробуємо завантажити з Google Sheets
+                        console.log('📋 Немає даних в кеші, спробуємо завантажити з Google Sheets...');
+                        try {
+                            await this.fetchDataFromSheets();
+                            // Після успішного завантаження з Google Sheets не викидаємо помилку
+                        } catch (sheetsError) {
+                            console.error('❌ Не вдалося завантажити дані з Google Sheets:', sheetsError);
+                            // Викидаємо помилку тільки якщо і fallback не спрацював
+                            throw sheetsError;
+                        }
+                    }
+                }
+            }
+
+            async loadDataFromAPI() {
+                try {
+                    const API_BASE_URL = window.API_BASE_URL || '';
+                    const isFileProtocol = window.location.protocol === 'file:';
+                    if (isFileProtocol && !API_BASE_URL) {
+                        console.warn('⚠️ Сторінка відкрита через file:// протокол. Backend API недоступний. Використовуємо fallback на Google Sheets.');
+                        await this.fetchDataFromSheets();
+                        return;
+                    }
+
+                    const url = API_BASE_URL ? `${API_BASE_URL}/api/data` : '/api/data';
+                    let response;
+                    try {
+                        response = await fetch(url);
+                    } catch (fetchError) {
+                        // Якщо помилка мережі (CORS, недоступний сервер), використовуємо fallback
+                        console.warn('⚠️ Помилка мережі при запиті до API:', fetchError);
+                        try {
+                            await this.fetchDataFromSheets();
+                            return; // Успішно завантажено з Google Sheets
+                        } catch (sheetsError) {
+                            console.error('❌ Не вдалося завантажити дані з Google Sheets:', sheetsError);
+                            throw fetchError; // Викидаємо оригінальну помилку, якщо fallback не спрацював
+                        }
+                    }
+
+                    if (!response.ok) {
+                        // Якщо API повернув помилку (404, 500 тощо), використовуємо fallback
+                        console.warn(`⚠️ API повернув помилку ${response.status}. Використовуємо fallback на Google Sheets.`);
+                        await this.fetchDataFromSheets();
+                        return;
+                    }
+
+                    // Перевіряємо, чи відповідь є JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        console.warn('⚠️ API повернув не JSON відповідь. Використовуємо fallback на Google Sheets.');
+                        await this.fetchDataFromSheets();
+                        return;
+                    }
+
+                    const data = await response.json();
+
+                    console.log('Отримано дані з API:', {
+                        success: data.success,
+                        processedCarsCount: data.processedCars?.length || 0,
+                        hasRegulations: !!data.data?.regulations,
+                        regulationsCount: data.data?.regulations?.length || 0
+                    });
+
+                    if (data.success) {
+                        this.processedCars = data.processedCars || [];
+                        this.maintenanceRegulations = data.data?.regulations || data.regulations || [];
+                        this.appData = data.data;
+
+                        // Зберігаємо в кеш
+                        if (window.CacheManager) {
+                            const cacheData = {
+                                ...data.data,
+                                processedCars: data.processedCars
+                            };
+                            window.CacheManager.cacheData(cacheData);
+                        }
+
+                        console.log('Завантажено:', {
+                            cars: this.processedCars.length,
+                            regulations: this.maintenanceRegulations.length
+                        });
+
+                        // Отримуємо функції форматування
+                        if (window.Formatters) {
+                            this.formatMileage = window.Formatters.formatMileage;
+                            this.formatDate = window.Formatters.formatDate;
+                        }
+
+                        // Оновлюємо дані в модулі
+                        if (this.reportsModule) {
+                            this.reportsModule.processedCars = this.processedCars;
+                            this.reportsModule.appData = this.appData;
+                            this.reportsModule.maintenanceRegulations = this.maintenanceRegulations;
+                        }
+
+                        // Оновлюємо фільтри після завантаження даних
+                        this.updateCityFilter();
+
+                        // Якщо вже вибрано тип роботи, генеруємо звіт
+                        if (this.selectedPart) {
+                            this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err));
+                        }
+                    } else {
+                        console.error('API повернув помилку:', data.error);
+                        // Якщо API повернув помилку, спробуємо завантажити з Google Sheets
+                        await this.fetchDataFromSheets();
+                    }
+                } catch (error) {
+                    console.error('Помилка завантаження з API:', error);
+                    // Якщо API не працює, спробуємо завантажити з Google Sheets
+                    try {
+                        await this.fetchDataFromSheets();
+                        // Якщо успішно завантажено з Google Sheets, не викидаємо помилку
+                    } catch (sheetsError) {
+                        console.error('❌ Не вдалося завантажити дані з Google Sheets:', sheetsError);
+                        // Викидаємо помилку тільки якщо і fallback не спрацював
+                        throw sheetsError;
+                    }
+                }
+            }
+
+            async fetchDataFromSheets() {
+                try {
+                    if (!window.CONFIG) {
+                        throw new Error('CONFIG не визначено');
+                    }
+
+                    const config = window.CONFIG;
+                    const { SPREADSHEET_ID, SHEETS, API_KEY } = config;
+
+                    if (!SPREADSHEET_ID || !SHEETS || !API_KEY) {
+                        throw new Error('Не визначено конфігурацію для Google Sheets');
+                    }
+
+                    console.log('📋 Завантаження даних з Google Sheets (fallback)...');
+
+                    const [scheduleData, historyData, regulationsData, photoAssessmentData] = await Promise.all([
+                        this.fetchSheetData(SPREADSHEET_ID, SHEETS.SCHEDULE, API_KEY),
+                        this.fetchSheetData(SPREADSHEET_ID, SHEETS.HISTORY, API_KEY),
+                        this.fetchSheetData(SPREADSHEET_ID, SHEETS.REGULATIONS, API_KEY),
+                        this.fetchSheetData(SPREADSHEET_ID, SHEETS.PHOTO_ASSESSMENT, API_KEY)
+                    ]);
+
+                    console.log('✅ Дані отримано з Google Sheets:', {
+                        scheduleRows: scheduleData?.length || 0,
+                        historyRows: historyData?.length || 0,
+                        regulationsRows: regulationsData?.length || 0,
+                        photoAssessmentRows: photoAssessmentData?.length || 0
+                    });
+
+                    // Обробляємо дані
+                    this.processDataFromSheets(scheduleData, historyData, regulationsData, photoAssessmentData);
+
+                    // Зберігаємо в кеш
+                    if (window.CacheManager) {
+                        const cacheData = {
+                            ...this.appData,
+                            processedCars: this.processedCars
+                        };
+                        window.CacheManager.cacheData(cacheData);
+                    }
+
+                    console.log('✅ Дані успішно оброблено з Google Sheets');
+
+                    // Оновлюємо дані в модулі
+                    if (this.reportsModule) {
+                        this.reportsModule.processedCars = this.processedCars;
+                        this.reportsModule.appData = this.appData;
+                        this.reportsModule.maintenanceRegulations = this.maintenanceRegulations;
+                    }
+
+                    // Оновлюємо фільтри після завантаження даних
+                    this.updateCityFilter();
+
+                    // Якщо вже вибрано тип роботи, генеруємо звіт
+                    // Використовуємо setTimeout, щоб переконатися, що UI вже ініціалізовано
+                    setTimeout(() => {
+                        if (this.selectedPart && this.processedCars && this.processedCars.length > 0) {
+                            this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err));
+                        }
+                    }, 100);
+                } catch (error) {
+                    console.error('❌ Помилка завантаження з Google Sheets:', error);
+                    throw error;
+                }
+            }
+
+            async fetchSheetData(spreadsheetId, sheetName, apiKey) {
+                try {
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${apiKey}`;
+                    console.log(`📥 Запит до: ${sheetName}`);
+
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    return data.values || [];
+                } catch (error) {
+                    console.error(`❌ Помилка завантаження аркуша ${sheetName}:`, error);
+                    return null;
+                }
+            }
+
+            processDataFromSheets(scheduleData, historyData, regulationsData, photoAssessmentData) {
+                if (!window.DataProcessor) {
+                    throw new Error('DataProcessor не завантажено');
+                }
+
+                // Обробляємо дані через DataProcessor
+                const result = window.DataProcessor.processData(
+                    scheduleData,
+                    historyData,
+                    regulationsData,
+                    photoAssessmentData,
+                    (value) => this.parseNumber(value),
+                    (dateString) => this.parseDate(dateString),
+                    (dateString) => this.formatDate(dateString)
+                );
+
+                this.appData = result.appData;
+                this.maintenanceRegulations = result.maintenanceRegulations;
+
+                // Обробляємо автомобілі через CarProcessor
+                if (window.CarProcessor) {
+                    console.log('🔧 Обробляємо дані через CarProcessor...', {
+                        recordsCount: this.appData.records?.length || 0,
+                        carsInfoCount: Object.keys(this.appData.carsInfo || {}).length,
+                        partsOrderCount: this.appData.partsOrder?.length || 0
+                    });
+
+                    this.processedCars = window.CarProcessor.processCarData(
+                        this.appData,
+                        (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
+                            this.getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license),
+                        (license, model, year, partName) =>
+                            this.findRegulationForCar(license, model, year, partName)
+                    );
+
+                    // Діагностика після обробки
+                    if (this.processedCars && this.processedCars.length > 0) {
+                        const firstCar = this.processedCars[0];
+                        const partsWithValues = firstCar.parts ? Object.keys(firstCar.parts).filter(key => {
+                            const val = firstCar.parts[key];
+                            return val !== null && val !== undefined && typeof val === 'object';
+                        }) : [];
+                        console.log('✅ Оброблено автомобілів:', this.processedCars.length);
+                        console.log('📊 Перше авто після обробки:', {
+                            license: firstCar.license,
+                            totalParts: firstCar.parts ? Object.keys(firstCar.parts).length : 0,
+                            partsWithValues: partsWithValues.length,
+                            sampleParts: partsWithValues.slice(0, 5)
+                        });
+
+                        if (partsWithValues.length === 0 && firstCar.parts && Object.keys(firstCar.parts).length > 0) {
+                            console.error('❌ КРИТИЧНА ПОМИЛКА: Після обробки всі значення запчастин є null!');
+                            console.error('Перевірте, чи правильно працює CarProcessor.processCarData');
+                        }
+                    }
+                }
+
+                // Отримуємо функції форматування
+                if (window.Formatters) {
+                    this.formatMileage = window.Formatters.formatMileage;
+                    this.formatDate = window.Formatters.formatDate;
+                }
+            }
+
+            parseNumber(value) {
+                if (typeof value === 'number') return value;
+                if (typeof value !== 'string') return 0;
+                const cleaned = value.replace(/[^\d.,-]/g, '').replace(',', '.');
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? 0 : parsed;
+            }
+
+            parseDate(dateString) {
+                if (!dateString) return null;
+                if (dateString instanceof Date) return dateString;
+                const date = new Date(dateString);
+                return isNaN(date.getTime()) ? null : date;
+            }
+
+            formatDate(dateString) {
+                if (!dateString) return '';
+                const date = this.parseDate(dateString);
+                if (!date) return dateString;
+                return date.toLocaleDateString('uk-UA');
+            }
+
+            getCachedData() {
+                if (window.CacheManager) {
+                    return window.CacheManager.getCachedData();
+                }
+                return null;
+            }
+
+            getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license) {
+                if (!window.CarProcessor) return null;
+                return window.CarProcessor.getPartStatus(
+                    partName,
+                    mileageDiff,
+                    daysDiff,
+                    carYear,
+                    carModel,
+                    license,
+                    this.maintenanceRegulations,
+                    this.findRegulationForCar.bind(this)
+                );
+            }
+
+            findRegulationForCar(license, model, year, partName) {
+                if (!window.CarProcessor) return null;
+                return window.CarProcessor.findRegulationForCar(license, model, year, partName, this.maintenanceRegulations);
+            }
+
+            updateCityFilter() {
+                const cityFilter = document.getElementById('city-filter');
+                if (!cityFilter) {
+                    console.warn('⚠️ Не знайдено елемент city-filter для оновлення');
+                    return;
+                }
+
+                // Очищаємо список міст перед заповненням (крім першого елемента "Всі міста")
+                while (cityFilter.children.length > 1) {
+                    cityFilter.removeChild(cityFilter.lastChild);
+                }
+
+                if (!this.processedCars || this.processedCars.length === 0) {
+                    console.warn('⚠️ processedCars порожній, не можу оновити список міст');
+                    return;
+                }
+
+                const cities = [...new Set(this.processedCars.map(car => car.city).filter(Boolean))].sort();
+                console.log('🏙️ Оновлюємо список міст, знайдено:', cities.length, 'міст');
+                cities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    cityFilter.appendChild(option);
+                });
+            }
+
+            initUI() {
+                // Заповнюємо список типів робіт
+                const partSelect = document.getElementById('part-select');
+                if (!partSelect) {
+                    console.error('Не знайдено елемент part-select');
+                    return;
+                }
+
+                const importantParts = [
+                    'ТО (масло+фільтри) 🛢️',
+                    'ГРМ (ролики+ремінь) ⚙️',
+                    'Помпа 💧',
+                    'Обвідний ремінь+ролики 🔧',
+                    'Діагностика ходової 🔍',
+                    'Розвал-сходження 📐',
+                    'Профілактика направляючих супортів 🛠️',
+                    "Компютерна діагностика 💻",
+                    'Прожиг сажового фільтру 🔥',
+                    'Свічки запалювання 🔥'
+                ];
+
+                importantParts.forEach(part => {
+                    const option = document.createElement('option');
+                    option.value = part;
+                    option.textContent = part;
+                    partSelect.appendChild(option);
+                });
+
+                // Встановлюємо значення за замовчуванням (перший елемент)
+                if (importantParts.length > 0 && !partSelect.value) {
+                    partSelect.value = importantParts[0];
+                    this.selectedPart = importantParts[0];
+                    console.log('✅ Встановлено значення за замовчуванням:', this.selectedPart);
+                }
+
+                // Заповнюємо список міст
+                const cityFilter = document.getElementById('city-filter');
+                if (!cityFilter) {
+                    console.error('Не знайдено елемент city-filter');
+                    return;
+                }
+
+                // Очищаємо список міст перед заповненням (крім першого елемента "Всі міста")
+                while (cityFilter.children.length > 1) {
+                    cityFilter.removeChild(cityFilter.lastChild);
+                }
+
+                if (!this.processedCars || this.processedCars.length === 0) {
+                    console.warn('⚠️ processedCars порожній, не можу заповнити список міст');
+                } else {
+                    const cities = [...new Set(this.processedCars.map(car => car.city).filter(Boolean))].sort();
+                    console.log('🏙️ Заповнюємо список міст, знайдено:', cities.length, 'міст');
+                    cities.forEach(city => {
+                        const option = document.createElement('option');
+                        option.value = city;
+                        option.textContent = city;
+                        cityFilter.appendChild(option);
+                    });
+                }
+
+                // Обробники подій
+                partSelect.addEventListener('change', (e) => {
+                    this.selectedPart = e.target.value;
+                    this.fullReportData = []; // Очищаємо повний звіт при зміні типу роботи
+                    this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err)); // Примусово регенеруємо
+                });
+
+                // Встановлюємо selectedPart з поточного значення select
+                console.log('🔍 Перевірка partSelect.value:', partSelect.value);
+                if (partSelect.value) {
+                    this.selectedPart = partSelect.value;
+                    console.log('✅ Встановлено selectedPart:', this.selectedPart);
+                } else {
+                    // Якщо значення не встановлено, встановлюємо перший елемент
+                    console.log('⚠️ Тип роботи не вибрано (partSelect.value порожній), встановлюємо перший');
+                    if (importantParts.length > 0) {
+                        partSelect.value = importantParts[0];
+                        this.selectedPart = importantParts[0];
+                        console.log('✅ Встановлено selectedPart (перший елемент):', this.selectedPart);
+                    }
+                }
+
+                // Якщо дані вже завантажені, генеруємо звіт
+                if (this.selectedPart && this.processedCars && this.processedCars.length > 0) {
+                    console.log('🔄 Генеруємо звіт після встановлення selectedPart, processedCars:', this.processedCars.length);
+                    this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err));
+                } else {
+                    console.log('ℹ️ Звіт не буде згенеровано:', {
+                        selectedPart: this.selectedPart,
+                        processedCars: this.processedCars?.length || 0
+                    });
+                }
+
+                document.getElementById('status-filter').addEventListener('change', () => {
+                    this.generateReport(false).catch(err => console.error('Помилка генерації звіту:', err)); // Тільки фільтруємо
+                });
+
+                document.getElementById('city-filter').addEventListener('change', () => {
+                    this.generateReport(false).catch(err => console.error('Помилка генерації звіту:', err)); // Тільки фільтруємо
+                });
+
+                document.getElementById('export-csv').addEventListener('click', () => {
+                    this.exportToCSV();
+                });
+
+                document.getElementById('export-excel').addEventListener('click', () => {
+                    this.exportToExcel();
+                });
+
+                document.getElementById('print-report').addEventListener('click', () => {
+                    this.printReport();
+                });
+            }
+
+            async generateReport(forceRegenerate = false) {
+                if (!this.selectedPart) {
+                    this.hideReport();
+                    return;
+                }
+
+                // Перевіряємо, чи є дані
+                if (!this.processedCars || this.processedCars.length === 0) {
+                    console.error('Немає даних про авто, спробуємо завантажити з кешу...');
+                    // Спробуємо завантажити з кешу
+                    const cached = this.getCachedData();
+                    if (cached && cached.processedCars && Array.isArray(cached.processedCars) && cached.processedCars.length > 0) {
+                        console.log('✅ Завантажено дані з кешу');
+                        this.processedCars = cached.processedCars;
+                        this.appData = cached;
+                        this.maintenanceRegulations = cached.regulations || [];
+                        // Оновлюємо дані в модулі
+                        if (this.reportsModule) {
+                            this.reportsModule.processedCars = this.processedCars;
+                            this.reportsModule.appData = this.appData;
+                            this.reportsModule.maintenanceRegulations = this.maintenanceRegulations;
+                        }
+                    } else {
+                        // Спробуємо завантажити з Google Sheets
+                        console.log('📋 Немає даних, спробуємо завантажити з Google Sheets...');
+                        try {
+                            await this.fetchDataFromSheets();
+                            // Після завантаження перевіряємо знову
+                            if (!this.processedCars || this.processedCars.length === 0) {
+                                alert('Дані про авто не завантажені. Будь ласка, спочатку перейдіть на головну сторінку для завантаження даних, а потім поверніться сюди.');
+                                return;
+                            }
+                        } catch (error) {
+                            console.error('❌ Не вдалося завантажити дані:', error);
+                            alert('Дані про авто не завантажені. Будь ласка, спочатку перейдіть на головну сторінку для завантаження даних, а потім поверніться сюди.');
+                            return;
+                        }
+                    }
+                }
+
+                // Перевіряємо, чи ініціалізовано модуль
+                if (!this.reportsModule) {
+                    console.error('reportsModule не ініціалізовано, ініціалізуємо...');
+                    this.reportsModule = new MaintenanceReports();
+                    this.reportsModule.appData = this.appData;
+                    this.reportsModule.processedCars = this.processedCars;
+                    this.reportsModule.maintenanceRegulations = this.maintenanceRegulations;
+                }
+
+
+                // Функція для нормалізації назви запчастини (видалення емодзі)
+                const normalizePartName = (name) => {
+                    if (!name) return '';
+                    return name.replace(/[🛠️⚙️💧🔧🔍📐💻🔥💿🛑⚪🔗🔩🔋⚡]/g, '').trim().toLowerCase();
+                };
+
+                // Перевіряємо, скільки авто мають цю запчастину
+                const selectedPartNormalized = normalizePartName(this.selectedPart);
+                const carsWithPart = this.processedCars.filter(car => {
+                    if (!car.parts) return false;
+
+                    // Спочатку перевіряємо точне співпадіння
+                    if (car.parts[this.selectedPart]) {
+                        return true;
+                    }
+
+                    // Потім шукаємо за нормалізованою назвою
+                    for (const partName in car.parts) {
+                        const partNameNormalized = normalizePartName(partName);
+                        if (selectedPartNormalized === partNameNormalized) {
+                            return true;
+                        }
+                        // Додаткова перевірка для частин назви
+                        if (selectedPartNormalized.includes('то') && partNameNormalized.includes('то') &&
+                            selectedPartNormalized.includes('масло') && partNameNormalized.includes('масло')) {
+                            return true;
+                        }
+                        if (selectedPartNormalized.includes('грм') && partNameNormalized.includes('грм')) {
+                            return true;
+                        }
+                        if (selectedPartNormalized.includes('помпа') && partNameNormalized.includes('помпа')) {
+                            return true;
+                        }
+                        if (selectedPartNormalized.includes('профілактика') && partNameNormalized.includes('профілактика') &&
+                            selectedPartNormalized.includes('супорт') && partNameNormalized.includes('супорт')) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
+                // Генеруємо повний звіт тільки якщо змінився тип роботи або це перший виклик
+                if (forceRegenerate || this.fullReportData.length === 0) {
+                    console.log('🔄 Генеруємо повний звіт для:', this.selectedPart);
+                    this.fullReportData = this.reportsModule.generateReport(
+                        this.selectedPart,
+                        this.processedCars,
+                        this.maintenanceRegulations,
+                        (license, model, year, partName, regulations) => {
+                            const reg = CarProcessor.findRegulationForCar(license, model, year, partName, regulations);
+                            if (!reg) {
+                                // Логуємо тільки перші 3 приклади, щоб не засмічувати консоль
+                                if (Math.random() < 0.01) { // Логуємо ~1% випадків
+                                    console.log('Не знайдено регламент для:', {
+                                        license,
+                                        model,
+                                        year,
+                                        partName,
+                                        regulationsCount: regulations?.length || 0
+                                    });
+                                }
+                            }
+                            return reg;
+                        },
+                        (val) => {
+                            if (window.Formatters && window.Formatters.formatMileage) {
+                                try {
+                                    // Викликаємо статичний метод правильно
+                                    return window.Formatters.formatMileage.call(window.Formatters, val);
+                                } catch (e) {
+                                    console.error('Помилка форматування пробігу:', e, val);
+                                    return val.toLocaleString('uk-UA') + ' км';
+                                }
+                            }
+                            // Fallback якщо Formatters не завантажений
+                            return val.toLocaleString('uk-UA') + ' км';
+                        },
+                        (date) => {
+                            if (window.Formatters && window.Formatters.formatDate) {
+                                return window.Formatters.formatDate(new Date(date));
+                            }
+                            const d = new Date(date);
+                            return d.toLocaleDateString('uk-UA');
+                        }
+                    );
+                    console.log('✅ Згенеровано повний звіт, записів:', this.fullReportData.length);
+                } else {
+                    console.log('ℹ️ Використовуємо кешований звіт, записів:', this.fullReportData.length);
+                }
+
+                // Фільтруємо повний звіт
+                const statusFilter = document.getElementById('status-filter').value;
+                const cityFilter = document.getElementById('city-filter').value;
+
+                const filteredData = this.reportsModule.filterReport(this.fullReportData, statusFilter, cityFilter);
+                console.log('📊 Після фільтрації, записів:', filteredData.length, 'з', this.fullReportData.length, 'загалом');
+
+                this.currentReportData = filteredData;
+                this.renderReport(filteredData);
+                this.updateStats(filteredData);
+            }
+
+            renderReport(reportData) {
+                console.log('🎨 renderReport викликано, записів:', reportData?.length || 0);
+                const placeholder = document.getElementById('report-placeholder');
+                const container = document.getElementById('report-table-container');
+                const tbody = document.getElementById('report-table-body');
+                const reportTitle = document.getElementById('report-title-text');
+
+                if (!reportData || reportData.length === 0) {
+                    console.log('⚠️ Звіт порожній, показуємо placeholder');
+                    placeholder.classList.remove('hidden');
+                    container.classList.add('hidden');
+                    this.updateExportButtons(false);
+                    if (reportTitle) reportTitle.textContent = '';
+                    return;
+                }
+
+                console.log('✅ Відображаємо звіт з', reportData.length, 'записами');
+
+                // Встановлюємо заголовок з назвою типу роботи
+                if (reportTitle && this.selectedPart) {
+                    // Форматуємо назву типу роботи для заголовка
+                    let titleText = this.selectedPart;
+                    // Додаємо опис для ТО
+                    if (titleText.includes('ТО (масло+фільтри)')) {
+                        titleText = '🛢️ ТО (ЗАМІНА МАСЛА І ФІЛЬТРІВ)';
+                    } else if (titleText.includes('ГРМ')) {
+                        titleText = '⚙️ ' + titleText.replace(/[⚙️]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Помпа')) {
+                        titleText = '💧 ' + titleText.replace(/[💧]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Обвідний ремінь')) {
+                        titleText = '🔧 ' + titleText.replace(/[🔧]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Діагностика ходової')) {
+                        titleText = '🔍 ' + titleText.replace(/[🔍]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Розвал-сходження')) {
+                        titleText = '📐 ' + titleText.replace(/[📐]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Профілактика направляючих супортів')) {
+                        titleText = '🛠️ ' + titleText.replace(/[🛠️]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Компютерна діагностика')) {
+                        titleText = '💻 ' + titleText.replace(/[💻]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Прожиг сажового фільтру')) {
+                        titleText = '🔥 ' + titleText.replace(/[🔥]/g, '').trim().toUpperCase();
+                    } else if (titleText.includes('Свічки запалювання')) {
+                        titleText = '🔥 ' + titleText.replace(/[🔥]/g, '').trim().toUpperCase();
+                    } else {
+                        // Для інших типів просто використовуємо оригінальну назву з емодзі
+                        titleText = titleText.toUpperCase();
+                    }
+                    reportTitle.textContent = titleText;
+                }
+
+                placeholder.classList.add('hidden');
+                container.classList.remove('hidden');
+
+                tbody.innerHTML = reportData.map((item, index) => {
+                    const statusClass = `status-${item.status}`;
+
+                    // Форматуємо одометр без пробілів (як у прикладі)
+                    const formatMileageNoSpaces = (mileage) => {
+                        if (typeof mileage === 'number') {
+                            return mileage.toString();
+                        }
+                        if (typeof mileage === 'string') {
+                            // Видаляємо пробіли та "км" якщо є
+                            return mileage.replace(/\s/g, '').replace(/км/g, '');
+                        }
+                        return mileage || '—';
+                    };
+
+                    return `
+                        <tr class="${statusClass}">
+                            <td>${index + 1}</td>
+                            <td>${item.city}</td>
+                            <td>${item.license}</td>
+                            <td>${item.model}</td>
+                            <td>${formatMileageNoSpaces(item.currentMileage)}</td>
+                            <td>${item.lastServiceDate}</td>
+                            <td>${formatMileageNoSpaces(item.lastServiceMileage)}</td>
+                            <td>${item.remainingText}</td>
+                            <td>${item.estimatedNextServiceDateText || '—'}</td>
+                            <td>${item.statusText}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                this.updateExportButtons(true);
+            }
+
+            updateStats(reportData) {
+                const stats = {
+                    urgent: reportData.filter(item => item.status === 'urgent').length,
+                    warning: reportData.filter(item => item.status === 'warning').length,
+                    normal: reportData.filter(item => item.status === 'normal').length,
+                    total: reportData.length
+                };
+
+                document.getElementById('stats-urgent').textContent = stats.urgent;
+                document.getElementById('stats-warning').textContent = stats.warning;
+                document.getElementById('stats-normal').textContent = stats.normal;
+                document.getElementById('stats-total').textContent = stats.total;
+
+                const statsContainer = document.getElementById('report-stats');
+                if (stats.total > 0) {
+                    statsContainer.classList.remove('hidden');
+                } else {
+                    statsContainer.classList.add('hidden');
+                }
+            }
+
+            updateExportButtons(enabled) {
+                const buttons = ['export-csv', 'export-excel', 'print-report'];
+                buttons.forEach(id => {
+                    const btn = document.getElementById(id);
+                    btn.disabled = !enabled;
+                });
+            }
+
+            hideReport() {
+                document.getElementById('report-placeholder').classList.remove('hidden');
+                document.getElementById('report-table-container').classList.add('hidden');
+                document.getElementById('report-stats').classList.add('hidden');
+                this.updateExportButtons(false);
+            }
+
+            exportToCSV() {
+                if (this.currentReportData.length === 0) return;
+                this.reportsModule.exportToCSV(this.currentReportData, this.selectedPart);
+            }
+
+            exportToExcel() {
+                if (this.currentReportData.length === 0) return;
+                this.reportsModule.exportToExcel(this.currentReportData, this.selectedPart);
+            }
+
+            printReport() {
+                if (this.currentReportData.length === 0) return;
+                this.reportsModule.printReport(this.currentReportData, this.selectedPart);
+            }
+
+            showInterface() {
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('main-interface').classList.remove('hidden');
+            }
+        }
+
+        // Ініціалізація при завантаженні сторінки
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new ReportsApp();
+            app.init();
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('✅ Service Worker registered:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('❌ Service Worker registration failed:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>

@@ -273,14 +273,7 @@ class CarAnalyticsApp {
    * Fallback метод - завантажує дані напряму з Google Sheets (якщо API недоступний)
    */
   async fetchDataFromSheets() {
-    if (!window.CONFIG) {
-      throw new Error(
-        "CONFIG не визначено. Перевірте, чи завантажено конфігурацію.",
-      );
-    }
-
-    const config = window.CONFIG;
-    const { SPREADSHEET_ID, SHEETS, API_KEY } = config;
+    const { SPREADSHEET_ID, SHEETS, API_KEY } = CONFIG;
 
     if (!SPREADSHEET_ID || !SHEETS || !API_KEY) {
       throw new Error("Не визначено конфігурацію для Google Sheets");
@@ -3667,7 +3660,7 @@ class CarAnalyticsApp {
     );
 
     // Діагностичне логування тільки якщо DEBUG включений
-    const DEBUG = window.CONFIG && CONFIG.DEBUG;
+    const DEBUG = CONFIG.DEBUG;
     if (DEBUG) {
       const normalizedLicense = car.license.replace(/\s+/g, "").toUpperCase();
       if (
@@ -5379,7 +5372,7 @@ class CarAnalyticsApp {
       await this.fetchDataFromSheets();
 
       // Діагностичне логування тільки якщо DEBUG включений
-      const DEBUG = window.CONFIG && CONFIG.DEBUG;
+      const DEBUG = CONFIG.DEBUG;
       if (DEBUG) {
         console.log(
           "📊 Після оновлення знайдено регламентів:",

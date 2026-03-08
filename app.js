@@ -231,10 +231,13 @@ class CarAnalyticsApp {
       }
 
       if (hasCache) {
+        console.log("📂 Cache found, rendering initial data and updating in background...");
         // Завжди оновлюємо дані у фоні
         setTimeout(async () => {
           try {
+            console.log("🔄 Starting background data update...");
             const isChanged = await this.fetchDataFromAPI();
+            console.log(`✅ Background update complete. Data changed: ${isChanged}`);
             // Оновлюємо відображення, якщо дані змінилися і користувач не відкрив модалку конкретного авто
             if (isChanged && this.state.selectedCar === null) {
               this.render();
@@ -282,6 +285,7 @@ class CarAnalyticsApp {
 
     this.updateLoadingProgress(30);
     this.updateLoadingProgress(40);
+    console.log("🌐 Fetching data from Google Sheets...");
     const [scheduleData, historyData, regulationsData, photoAssessmentData] =
       await Promise.all([
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.SCHEDULE, API_KEY),
@@ -289,6 +293,16 @@ class CarAnalyticsApp {
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.REGULATIONS, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.PHOTO_ASSESSMENT, API_KEY),
       ]);
+
+    console.log(`📊 Raw Data Fetched:
+      - Schedule: ${scheduleData?.length || 0} rows
+      - History: ${historyData?.length || 0} rows
+      - Regulations: ${regulationsData?.length || 0} rows
+      - Photo: ${photoAssessmentData?.length || 0} rows`);
+
+    if (!scheduleData || scheduleData.length === 0) {
+      console.warn("⚠️ Schedule data is empty or null");
+    }
 
     if (!scheduleData || !historyData) {
       throw new Error("Не вдалося завантажити основні дані з Google Sheets");
@@ -333,13 +347,16 @@ class CarAnalyticsApp {
   async fetchSheetData(spreadsheetId, sheetName, apiKey) {
     try {
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${apiKey}`;
+      console.log(`🔍 Fetching sheet: ${sheetName}`);
 
       const response = await fetch(url);
       if (!response.ok) {
+        console.error(`❌ Failed to fetch ${sheetName}: ${response.status} ${response.statusText}`);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log(`✅ Received ${data.values?.length || 0} rows from ${sheetName}`);
       return data.values || [];
     } catch (error) {
       console.error(`❌ Помилка завантаження аркуша ${sheetName}:`, error);
@@ -516,7 +533,21 @@ class CarAnalyticsApp {
         this.updateLoadingProgress(60);
         await new Promise((resolve) => {
           setTimeout(() => {
-            this.processedCars = CarProcessor.processCarData();
+            this.processedCars = CarProcessor.processCarData(
+              this.appData,
+              (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
+                CarProcessor.getPartStatus(
+                  partName,
+                  mileageDiff,
+                  daysDiff,
+                  carYear,
+                  carModel,
+                  license,
+                  this.maintenanceRegulations,
+                  CarProcessor.findRegulationForCar,
+                ),
+              CarProcessor.findRegulationForCar,
+            );
             try {
               if (this.appData) {
                 this.cacheData({
@@ -712,7 +743,21 @@ class CarAnalyticsApp {
     // Використовуємо requestAnimationFrame для асинхронного рендерингу
     requestAnimationFrame(() => {
       if (!this.processedCars) {
-        this.processedCars = CarProcessor.processCarData();
+        this.processedCars = CarProcessor.processCarData(
+          this.appData,
+          (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
+            CarProcessor.getPartStatus(
+              partName,
+              mileageDiff,
+              daysDiff,
+              carYear,
+              carModel,
+              license,
+              this.maintenanceRegulations,
+              CarProcessor.findRegulationForCar,
+            ),
+          CarProcessor.findRegulationForCar,
+        );
         // При першому розрахунку також оновлюємо кеш processedCars
         try {
           if (this.appData) {
@@ -5181,7 +5226,7 @@ class CarAnalyticsApp {
     if (existingMenu) existingMenu.remove();
 
     if (!this.processedCars) {
-      this.processedCars = CarProcessor.processCarData();
+      this.processedCars = this.processCarData();
     }
 
     // Отримуємо список унікальних марок

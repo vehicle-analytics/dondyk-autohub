@@ -48,6 +48,8 @@ export class DataProcessor {
     const carsInfo = {};
     const carCities = {};
 
+    console.log(`Processing scheduleData: ${scheduleData?.length || 0} rows`);
+
     // Рядок 1 (індекс 0): заголовки
     // Рядок 2 (індекс 1): пропускаємо
     // Рядок 3 (індекс 2): початок даних авто
@@ -70,6 +72,12 @@ export class DataProcessor {
     }
 
     const allowedCars = Object.keys(carsInfo);
+    console.log(`Identified ${allowedCars.length} cars from scheduleData`);
+    if (allowedCars.length === 0) {
+      console.warn("⚠️ No cars identified! Check column indices and data format.");
+      console.log("Sample row (index 2):", scheduleData[2]);
+    }
+
     const records = [];
     const currentMileages = {};
     const allowedCarsSet = new Set(allowedCars);

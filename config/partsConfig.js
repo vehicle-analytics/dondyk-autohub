@@ -827,5 +827,3 @@ export const PARTS_CONFIG = {
     ]
 };
 
-// Export for use in other files
-export { PARTS_CONFIG };

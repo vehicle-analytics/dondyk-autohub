@@ -20,24 +20,7 @@
 
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Instant Loading Script (Stale-While-Revalidate) -->
-    <script>
-        // Негайно приховуємо екран завантаження, якщо є кеш
-        if (localStorage.getItem("carAnalyticsData")) {
-            document.documentElement.classList.add('has-cache');
-        }
-    </script>
-    <style>
-        html.has-cache #loading-screen {
-            display: none !important;
-        }
-
-        html.has-cache #main-interface {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-    </style>
+    <!-- Removed Instant Loading Script to always show loading screen initially -->
 
     <!-- Main app as a module -->
     <script type="module" src="app.js"></script>

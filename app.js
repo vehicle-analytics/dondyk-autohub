@@ -4545,7 +4545,7 @@ class CarAnalyticsApp {
           "Свічки запалювання 🔥",
         ],
         x: 50,
-        y: 42,
+        y: 45,
       },
       {
         name: "Трансмісія",
@@ -4559,7 +4559,7 @@ class CarAnalyticsApp {
     return `
             <div class="mt-6 mb-4 bg-white rounded-xl shadow-xl p-3 sm:p-4 border border-gray-200">
                 <h4 class="font-semibold text-gray-800 mb-3 text-center text-lg">🗺️ Інтерактивна карта стану авто</h4>
-                <div class="relative bg-gray-100 rounded-lg p-4 h-80">
+                <div class="relative bg-gray-100 rounded-lg p-2 h-80 sm:h-96 w-full flex items-center justify-center overflow-visible">
                     ${carParts
         .map((system) => {
           const systemStatus = this.getSystemStatus(
@@ -4567,19 +4567,18 @@ class CarAnalyticsApp {
             system.parts,
             system.name,
           );
-          const statusColor =
+          const statusColorHex =
             systemStatus === "good"
-              ? "bg-green-500"
+              ? "#10b981"
               : systemStatus === "warning"
-                ? "bg-orange-500"
-                : "bg-red-500";
+                ? "#f97316"
+                : "#ef4444";
           const statusIcon =
             systemStatus === "good"
               ? "✅"
               : systemStatus === "warning"
                 ? "⚠️"
                 : "⛔";
-
           const statusText =
             systemStatus === "good"
               ? "Норма"
@@ -4593,40 +4592,52 @@ class CarAnalyticsApp {
           );
 
           return `
-                            <div class="absolute system-map-item" style="left: ${system.x}%; top: ${system.y}%; transform: translate(-50%, -50%); z-index: 10;">
-                                <div class="relative">
-                                    <div class="system-map-name absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 text-center w-full">
-                                        <div class="text-sm font-bold text-gray-800 whitespace-nowrap">${system.name}</div>
+                            <div class="group" style="position: absolute; left: ${system.x}%; top: ${system.y}%; transform: translate(-50%, -50%); z-index: 10;">
+                                <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+                                    
+                                    <!-- Назва системи (над іконкою) -->
+                                    <div style="position: absolute; bottom: 100%; margin-bottom: 8px; white-space: nowrap; text-align: center; width: max-content; pointer-events: none;">
+                                        <div class="text-sm font-bold text-gray-800 drop-shadow-sm">${system.name}</div>
                                     </div>
-                                    <div class="system-map-icon w-20 h-20 ${statusColor} rounded-full flex flex-col items-center justify-center text-white font-bold shadow-lg cursor-pointer transition-transform hover:scale-110"
-                                         style="background: ${systemStatus === "good" ? "#10b981" : systemStatus === "warning" ? "#f97316" : "#ef4444"};">
-                                        <div class="text-3xl">${system.emoji}</div>
-                                        <div class="text-sm mt-0.5 font-bold">${statusIcon}</div>
+                                    
+                                    <!-- Головна іконка -->
+                                    <div class="shadow-lg cursor-pointer transition-transform duration-300 group-hover:scale-110" 
+                                         style="width: 5rem; height: 5rem; border-radius: 9999px; background-color: ${statusColorHex}; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
+                                        <div class="text-3xl leading-none">${system.emoji}</div>
+                                        <div class="text-sm mt-1 font-bold leading-none">${statusIcon}</div>
                                     </div>
-                                    <div class="system-map-label absolute top-full left-1/2 transform -translate-x-1/2 mt-1 text-center w-full">
-                                        <div class="text-xs font-bold text-gray-800 whitespace-nowrap">${statusText}</div>
+                                    
+                                    <!-- Статус-лейбл (під іконкою) -->
+                                    <div style="position: absolute; top: 100%; margin-top: 6px; white-space: nowrap; text-align: center; width: max-content; pointer-events: none;">
+                                        <div class="text-xs font-bold text-gray-800 drop-shadow-sm">${statusText}</div>
                                     </div>
-                                    <div class="system-map-tooltip">
-                                        <div class="text-xs text-gray-700 space-y-1">${systemDetails}</div>
+                                    
+                                    <!-- Випливаюча підказка (Tooltip) -->
+                                    <div class="opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300" 
+                                         style="position: absolute; top: 120%; left: 50%; transform: translateX(-50%); z-index: 50; width: max-content; max-width: 250px; background: rgba(15, 23, 42, 0.95); color: white; padding: 10px 14px; border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px);">
+                                        <div class="text-xs text-gray-100 space-y-1.5 text-left">${systemDetails}</div>
                                     </div>
+                                    
                                 </div>
                             </div>
                         `;
         })
         .join("")}
                 </div>
-                <div class="mt-3 flex justify-center gap-4 text-xs">
-                    <div class="flex items-center gap-1.5">
-                        <div class="w-4 h-4 bg-green-500 rounded-full"></div>
-                        <span class="text-gray-700 font-semibold">Норма</span>
+                
+                <!-- Легенда -->
+                <div class="mt-4 flex flex-wrap justify-center gap-4 text-xs">
+                    <div class="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-100">
+                        <div class="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
+                        <span class="text-gray-700 font-semibold uppercase tracking-wide">Норма</span>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <div class="w-4 h-4 bg-orange-500 rounded-full"></div>
-                        <span class="text-gray-700 font-semibold">Увага</span>
+                    <div class="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-100">
+                        <div class="w-3 h-3 bg-orange-500 rounded-full shadow-sm"></div>
+                        <span class="text-gray-700 font-semibold uppercase tracking-wide">Увага</span>
                     </div>
-                    <div class="flex items-center gap-1.5">
-                        <div class="w-4 h-4 bg-red-500 rounded-full"></div>
-                        <span class="text-gray-700 font-semibold">Критично</span>
+                    <div class="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-100">
+                        <div class="w-3 h-3 bg-red-500 rounded-full shadow-sm"></div>
+                        <span class="text-gray-700 font-semibold uppercase tracking-wide">Критично</span>
                     </div>
                 </div>
             </div>

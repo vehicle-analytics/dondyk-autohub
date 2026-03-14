@@ -13,6 +13,7 @@ export class CarProcessor {
       carsInfo,
       currentMileages,
       partKeywords,
+      compiledPartKeywords,
       partsOrder,
       currentDate,
       photoAssessmentStatuses,
@@ -62,33 +63,48 @@ export class CarProcessor {
 
       const descLower = (record.description || "").toLowerCase();
 
-      for (const partName in partKeywords) {
-        const keywords = partKeywords[partName];
+      for (const partName in (compiledPartKeywords || partKeywords)) {
         let matched = false;
 
-        // Спочатку перевіряємо прості збіги
-        for (const keyword of keywords) {
-          const keywordLower = keyword.toLowerCase();
-          if (descLower.includes(keywordLower)) {
-            matched = true;
-            break;
+        if (compiledPartKeywords) {
+          const compiled = compiledPartKeywords[partName];
+          // Check simple includes
+          for (let i = 0; i < compiled.simple.length; i++) {
+             if (descLower.includes(compiled.simple[i])) {
+                matched = true;
+                break;
+             }
           }
-        }
-
-        // Якщо не знайдено простий збіг, використовуємо спрощену перевірку порядку слів
-        // (без повної генерації всіх перестановок для швидкості)
-        if (!matched) {
+          // Check complex includes
+          if (!matched) {
+             for (let i = 0; i < compiled.complex.length; i++) {
+                const words = compiled.complex[i];
+                let allWordsPresent = true;
+                for (let j = 0; j < words.length; j++) {
+                   if (!descLower.includes(words[j])) {
+                      allWordsPresent = false;
+                      break;
+                   }
+                }
+                if (allWordsPresent) {
+                   matched = true;
+                   break;
+                }
+             }
+          }
+        } else {
+          // Fallback to old behavior if old cache exists without compiled keywords
+          const keywords = partKeywords[partName];
           for (const keyword of keywords) {
-            const keywordLower = keyword.toLowerCase().trim();
-            const words = keywordLower.split(/\s+/).filter((w) => w.length > 0);
-
-            // Для складних фраз перевіряємо, чи всі слова присутні в описі
-            if (words.length > 1) {
-              const allWordsPresent = words.every((word) =>
-                descLower.includes(word),
-              );
-              if (allWordsPresent) {
-                // Якщо всі слова присутні, вважаємо збіг (незалежно від порядку)
+            if (descLower.includes(keyword.toLowerCase())) {
+              matched = true;
+              break;
+            }
+          }
+          if (!matched) {
+            for (const keyword of keywords) {
+              const words = keyword.toLowerCase().trim().split(/\s+/).filter((w) => w.length > 0);
+              if (words.length > 1 && words.every((word) => descLower.includes(word))) {
                 matched = true;
                 break;
               }
@@ -317,11 +333,8 @@ export class CarProcessor {
     const matchingRegulations = [];
 
     for (const regulation of maintenanceRegulations) {
-      // Порівнюємо назви деталей (враховуємо обидва варіанти: з апострофом та без)
-      // Також видаляємо емодзі з назви регламенту
-      const regulationPartName = removeEmoji(
-        (regulation.partName || "").trim(),
-      );
+      // Використовуємо попередньо розраховану нормалізовану назву
+      const regulationPartName = regulation.normalizedPartName || "";
 
       let partNameMatches = false;
 
@@ -393,63 +406,7 @@ export class CarProcessor {
         partNameMatches = regulationPartName === normalizedMappedPartName;
       }
 
-      // Діагностичне логування для АІ 9573 ОО та релевантних деталей
-      if (
-        isDebugCar &&
-        regulation.licensePattern &&
-        normalizeLicense(regulation.licensePattern) === normalizedLicense
-      ) {
-        const isRelevantPart =
-          normalizedMappedPartName === "ГРМ (ролики+ремінь)" ||
-          normalizedMappedPartName === "Помпа" ||
-          normalizedMappedPartName === "Обвідний ремінь+ролики" ||
-          normalizedMappedPartName === "Обвідний ремінь";
-        if (isRelevantPart) {
-          console.log(`[DEBUG] Порівняння для ${normalizedMappedPartName}:`);
-          console.log(`  regulationPartName: "${regulationPartName}"`);
-          console.log(
-            `  normalizedMappedPartName: "${normalizedMappedPartName}"`,
-          );
-          console.log(`  partNameMatches: ${partNameMatches}`);
-        }
-      }
-
       if (!partNameMatches) {
-        // Логуємо тільки якщо це регламент з номером АІ 9573 ОО І ми шукаємо саме цю деталь
-        if (
-          isDebugCar &&
-          regulation.licensePattern &&
-          normalizeLicense(regulation.licensePattern) === normalizedLicense
-        ) {
-          // Перевіряємо, чи це релевантна деталь (ГРМ, Помпа, Обвідний ремінь)
-          const isRelevantPart =
-            normalizedMappedPartName === "ГРМ (ролики+ремінь)" ||
-            normalizedMappedPartName === "Помпа" ||
-            normalizedMappedPartName === "Обвідний ремінь+ролики" ||
-            normalizedMappedPartName === "Обвідний ремінь";
-          if (isRelevantPart) {
-            console.log(
-              `[DEBUG] Пропущено через назву деталі (шукаємо: ${normalizedMappedPartName}):`,
-            );
-            console.log(
-              `  regulationPartName: "${regulationPartName}" (довжина: ${regulationPartName.length})`,
-            );
-            console.log(
-              `  normalizedMappedPartName: "${normalizedMappedPartName}" (довжина: ${normalizedMappedPartName.length})`,
-            );
-            console.log(
-              `  exactMatch: ${regulationPartName === normalizedMappedPartName}`,
-            );
-            console.log(
-              `  regulationPartName codes:`,
-              Array.from(regulationPartName).map((c) => c.charCodeAt(0)),
-            );
-            console.log(
-              `  mappedPartName codes:`,
-              Array.from(normalizedMappedPartName).map((c) => c.charCodeAt(0)),
-            );
-          }
-        }
         continue;
       }
 
@@ -458,144 +415,34 @@ export class CarProcessor {
         regulation.licensePattern !== "*" &&
         regulation.licensePattern !== ".*"
       ) {
-        // Порівнюємо номери з урахуванням кирилиці/латиниці
-        const normalizedLicensePattern = normalizeLicense(
-          regulation.licensePattern,
-        );
+        // Порівнюємо номери з урахуванням кирилиці/латиниці - використовуємо попередньо розрахований
+        const normalizedLicensePattern = regulation.normalizedLicensePattern || "";
         if (normalizedLicensePattern !== normalizedLicense) {
-          if (isDebugCar && partNameMatches) {
-            console.log(`[DEBUG] Пропущено через номер:`);
-            console.log(
-              `  regulationLicensePattern: "${regulation.licensePattern}"`,
-            );
-            console.log(
-              `  normalizedLicensePattern: "${normalizedLicensePattern}"`,
-            );
-            console.log(`  normalizedLicense: "${normalizedLicense}"`);
-            console.log(
-              `  match: ${normalizedLicensePattern === normalizedLicense}`,
-            );
-          }
           continue;
         }
       }
 
       // Якщо brandPattern = "*", то регламент застосовується для всіх марок (не перевіряємо марку)
       if (regulation.brandPattern !== "*" && regulation.brandPattern !== ".*") {
-        try {
-          const brandRegex = new RegExp(regulation.brandPattern, "i");
-          if (!brandRegex.test(model)) {
-            if (
-              isDebugCar &&
-              partNameMatches &&
-              normalizeLicense(regulation.licensePattern) === normalizedLicense
-            ) {
-              console.log(
-                `[DEBUG] Пропущено через марку (шукаємо: ${normalizedMappedPartName}):`,
-              );
-              console.log(
-                `  regulationBrandPattern: "${regulation.brandPattern}"`,
-              );
-              console.log(`  carModel: "${model}"`);
-              console.log(`  match: ${brandRegex.test(model)}`);
-            }
+        if (regulation.brandRegex) {
+          if (!regulation.brandRegex.test(model)) {
             continue;
           }
-        } catch (e) {
-          console.warn(
-            "Помилка в регулярному виразі для марки:",
-            regulation.brandPattern,
-            e,
-          );
-          continue;
         }
       }
 
       // Якщо modelPattern = "*", то регламент застосовується для всіх моделей (не перевіряємо модель)
       if (regulation.modelPattern !== "*" && regulation.modelPattern !== ".*") {
-        try {
-          // Якщо pattern починається з крапки, додаємо ^ для початку рядка або пробіл/початок слова
-          // Якщо pattern закінчується крапкою, додаємо $ для кінця рядка або пробіл/кінець слова
-          let pattern = regulation.modelPattern;
-
-          // Якщо pattern починається з крапки, замінюємо її на початок слова або пробіл перед
-          if (pattern.startsWith(".")) {
-            pattern = pattern.replace(/^\./, "(?:^|\\s)");
-          }
-          // Якщо pattern закінчується крапкою, замінюємо її на кінець слова або пробіл після
-          if (pattern.endsWith(".")) {
-            pattern = pattern.replace(/\.$/, "(?:\\s|$)");
-          }
-
-          const modelRegex = new RegExp(pattern, "i");
-          if (!modelRegex.test(model)) {
-            if (
-              isDebugCar &&
-              partNameMatches &&
-              normalizeLicense(regulation.licensePattern) === normalizedLicense
-            ) {
-              console.log(
-                `[DEBUG] Пропущено через модель (шукаємо: ${normalizedMappedPartName}):`,
-              );
-              console.log(
-                `  regulationModelPattern: "${regulation.modelPattern}"`,
-              );
-              console.log(`  convertedPattern: "${pattern}"`);
-              console.log(`  carModel: "${model}"`);
-              console.log(`  match: ${modelRegex.test(model)}`);
-            }
+        if (regulation.modelRegex) {
+          if (!regulation.modelRegex.test(model)) {
             continue;
           }
-        } catch (e) {
-          console.warn(
-            "Помилка в регулярному виразі для моделі:",
-            regulation.modelPattern,
-            e,
-          );
-          continue;
         }
       }
 
       // Перевіряємо рік випуску авто
       if (carYear < regulation.yearFrom || carYear > regulation.yearTo) {
-        if (
-          isDebugCar &&
-          partNameMatches &&
-          normalizeLicense(regulation.licensePattern) === normalizedLicense
-        ) {
-          console.log(
-            `[DEBUG] Пропущено через рік (шукаємо: ${normalizedMappedPartName}):`,
-          );
-          console.log(
-            `  regulationYearFrom: ${regulation.yearFrom}, regulationYearTo: ${regulation.yearTo}`,
-          );
-          console.log(`  carYear: ${carYear}`);
-          console.log(
-            `  match: ${carYear >= regulation.yearFrom && carYear <= regulation.yearTo}`,
-          );
-        }
         continue;
-      }
-
-      // Діагностичне логування для успішного додавання регламенту
-      if (
-        isDebugCar &&
-        partNameMatches &&
-        normalizeLicense(regulation.licensePattern) === normalizedLicense
-      ) {
-        const isRelevantPart =
-          normalizedMappedPartName === "ГРМ (ролики+ремінь)" ||
-          normalizedMappedPartName === "Помпа" ||
-          normalizedMappedPartName === "Обвідний ремінь+ролики" ||
-          normalizedMappedPartName === "Обвідний ремінь";
-        if (isRelevantPart) {
-          console.log(
-            `[DEBUG] ✅ Регламент додано до matchingRegulations для ${normalizedMappedPartName}:`,
-          );
-          console.log(`  regulationValue: ${regulation.regulationValue}`);
-          console.log(`  normalValue: ${regulation.normalValue}`);
-          console.log(`  periodType: ${regulation.periodType}`);
-        }
       }
 
       matchingRegulations.push(regulation);

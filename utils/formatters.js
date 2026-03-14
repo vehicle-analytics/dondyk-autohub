@@ -56,8 +56,8 @@ export class Formatters {
     if (mileage === null || mileage === undefined || isNaN(mileage)) {
       return "- км";
     }
-    const convertedMileage = this.convertToThousands(mileage);
-    const formatted = this.formatNumber(convertedMileage);
+    const convertedMileage = Formatters.convertToThousands(mileage);
+    const formatted = Formatters.formatNumber(convertedMileage);
     return `${formatted} км`;
   }
 
@@ -68,7 +68,7 @@ export class Formatters {
     if (mileage === null || mileage === undefined || isNaN(mileage)) {
       return 0;
     }
-    return this.convertToThousands(mileage);
+    return Formatters.convertToThousands(mileage);
   }
 
   /**
@@ -82,7 +82,7 @@ export class Formatters {
     ) {
       return "- км";
     }
-    const formatted = this.formatNumber(mileageDiff);
+    const formatted = Formatters.formatNumber(mileageDiff);
     return `${formatted} км`;
   }
 
@@ -119,7 +119,7 @@ export class Formatters {
     }
 
     // Спочатку намагаємося розпарсити дату через parseDate для правильного розпізнавання формату
-    const parsedDate = this.parseDate(dateString);
+    const parsedDate = Formatters.parseDate(dateString);
     if (parsedDate) {
       const day = String(parsedDate.getDate()).padStart(2, "0");
       const month = String(parsedDate.getMonth() + 1).padStart(2, "0");

@@ -192,11 +192,25 @@ export class DataProcessor {
       }
     }
 
+    // Compile part keywords into regexes for O(1) matching later
+    const compiledPartKeywords = {};
+    for (const partName in CONSTANTS.PARTS_CONFIG) {
+      const keywords = CONSTANTS.PARTS_CONFIG[partName];
+      compiledPartKeywords[partName] = {
+        simple: keywords.map(kw => kw.toLowerCase()),
+        complex: keywords.map(kw => {
+          const words = kw.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0);
+          return words.length > 1 ? words : null;
+        }).filter(Boolean)
+      };
+    }
+
     const appData = {
       records: records,
       currentMileages: currentMileages,
       carsInfo: carsInfo,
       partKeywords: CONSTANTS.PARTS_CONFIG,
+      compiledPartKeywords: compiledPartKeywords,
       partsOrder: CONSTANTS.PARTS_ORDER,
       regulations: maintenanceRegulations,
       photoAssessmentStatuses: photoAssessmentStatuses,
@@ -230,28 +244,21 @@ export class DataProcessor {
 
     // Функція для нормалізації номерів (для порівняння)
     const normalizeLicenseForComparison = (licenseStr) => {
-      if (!licenseStr) return "";
+      if (!licenseStr || licenseStr === "*" || licenseStr === ".*") return licenseStr;
       // Замінюємо кирилицю на латиницю для порівняння
       const cyrillicToLatin = {
-        А: "A",
-        В: "B",
-        Е: "E",
-        К: "K",
-        М: "M",
-        Н: "H",
-        О: "O",
-        Р: "P",
-        С: "C",
-        Т: "T",
-        У: "Y",
-        Х: "X",
-        І: "I",
+        А: "A", В: "B", Е: "E", К: "K", М: "M", Н: "H", О: "O", Р: "P", С: "C", Т: "T", У: "Y", Х: "X", І: "I",
       };
       let normalized = licenseStr.replace(/\s+/g, "").toUpperCase();
       for (const [cyr, lat] of Object.entries(cyrillicToLatin)) {
         normalized = normalized.replace(new RegExp(cyr, "g"), lat);
       }
       return normalized;
+    };
+
+    const removeEmoji = (str) => {
+      if (!str) return "";
+      return str.replace(/[\u{1F300}-\u{1F9FF}]/gu, "").replace(/\s+/g, " ").trim();
     };
 
     for (let i = 1; i < regulationsData.length; i++) {
@@ -295,7 +302,20 @@ export class DataProcessor {
         specialNote: specialNote, // Стовпець N (Особливість)
       };
 
-      // Debug logging removed for performance
+      regulation.normalizedPartName = removeEmoji(regulation.partName);
+      regulation.normalizedLicensePattern = normalizeLicenseForComparison(regulation.licensePattern);
+      
+      if (regulation.brandPattern !== "*" && regulation.brandPattern !== ".*") {
+        try { regulation.brandRegex = new RegExp(regulation.brandPattern, "i"); } catch(e) {}
+      }
+      if (regulation.modelPattern !== "*" && regulation.modelPattern !== ".*") {
+        try {
+          let pattern = regulation.modelPattern;
+          if (pattern.startsWith(".")) pattern = pattern.replace(/^\./, "(?:^|\\s)");
+          if (pattern.endsWith(".")) pattern = pattern.replace(/\.$/, "(?:\\s|$)");
+          regulation.modelRegex = new RegExp(pattern, "i");
+        } catch(e) {}
+      }
 
       regulations.push(regulation);
     }

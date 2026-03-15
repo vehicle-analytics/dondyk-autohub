@@ -62,15 +62,20 @@ class CarAnalyticsApp {
     this.updateLoadingProgress(20);
 
     const cached = this.getCachedData();
-    if (cached && cached.carsInfo && Object.keys(cached.carsInfo).length > 0) {
-      this.appData = cached;
-      this.maintenanceRegulations = cached.regulations || [];
+    const preBaked = window.preBakedData;
+
+    // Спроба миттєвого відображення з кешу або запечених даних
+    const initialData = cached || preBaked;
+
+    if (initialData && initialData.carsInfo && Object.keys(initialData.carsInfo).length > 0) {
+      this.appData = initialData;
+      this.maintenanceRegulations = initialData.regulations || [];
       if (
-        cached.processedCars &&
-        Array.isArray(cached.processedCars) &&
-        cached.processedCars.length > 0
+        initialData.processedCars &&
+        Array.isArray(initialData.processedCars) &&
+        initialData.processedCars.length > 0
       ) {
-        this.processedCars = cached.processedCars;
+        this.processedCars = initialData.processedCars;
       }
       requestAnimationFrame(() => {
         this.render();
@@ -206,96 +211,85 @@ class CarAnalyticsApp {
   async loadData(forceRefresh = false) {
     try {
       const cached = this.getCachedData();
+      const preBaked = window.preBakedData;
+      let hasData = false;
       let hasCache = false;
 
-      if (
-        cached &&
-        cached.carsInfo &&
-        Object.keys(cached.carsInfo).length > 0
-      ) {
+      if (cached && cached.carsInfo && Object.keys(cached.carsInfo).length > 0) {
         this.appData = cached;
-        this.maintenanceRegulations = cached.regulations || [];
-        if (cached.processedCars && Array.isArray(cached.processedCars)) {
-          this.processedCars = cached.processedCars;
+        hasData = true;
+        hasCache = true;
+      } else if (preBaked && preBaked.carsInfo && Object.keys(preBaked.carsInfo).length > 0) {
+        this.appData = preBaked;
+        hasData = true;
+        console.log("⚡ Using pre-baked fallback data");
+      }
+
+      if (hasData) {
+        this.maintenanceRegulations = this.appData.regulations || [];
+        if (this.appData.processedCars && Array.isArray(this.appData.processedCars)) {
+          this.processedCars = this.appData.processedCars;
         }
         this.updateCacheInfo();
-        hasCache = true;
-
         this.render();
 
-        // Додаємо бейдж 'КЕШ' в статусі оновлення
         const lastUpdatedEl = document.getElementById("last-updated");
-        if (lastUpdatedEl && !lastUpdatedEl.innerHTML.includes("КЕШ")) {
-          lastUpdatedEl.innerHTML += ' <span style="background:var(--warning-color,#fbbf24);color:#000;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">КЕШ</span>';
+        if (lastUpdatedEl && !lastUpdatedEl.innerHTML.includes("badge")) {
+          const badgeText = cached ? "КЕШ" : "ГОТОВО";
+          const badgeColor = cached ? "var(--warning-color,#fbbf24)" : "var(--success-color,#10b981)";
+          lastUpdatedEl.innerHTML += ` <span class="badge" style="background:${badgeColor};color:#000;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">${badgeText}</span>`;
         }
       }
 
       if (hasCache && !forceRefresh) {
-        // Перевіряємо, чи кеш свіжий (зроблений після сьогоднішніх 06:00)
         let isCacheFresh = false;
         try {
           const cacheTimeStr = localStorage.getItem("carAnalyticsCacheTime");
           if (cacheTimeStr) {
             const cacheTime = new Date(cacheTimeStr);
             const now = new Date();
-            
-            // Визначаємо час останнього оновлення (сьогодні 06:00 або вчора 06:00)
             const [hours, minutes] = (CONFIG.REFRESH_TIME || "06:00").split(":").map(Number);
             const lastRefreshTime = new Date(now);
             lastRefreshTime.setHours(hours, minutes, 0, 0);
-            
-            // Якщо зараз ще немає 06:00, то останнє оновлення було вчора о 06:00
             if (now < lastRefreshTime) {
               lastRefreshTime.setDate(lastRefreshTime.getDate() - 1);
             }
-            
-            // Якщо кеш створений після останнього оновлення о 06:00, він свіжий
             if (cacheTime >= lastRefreshTime) {
               isCacheFresh = true;
-              console.log("🌟 Cache is fresh (newer than last 06:00). Skipping background fetch!");
+              console.log("🌟 Cache is fresh. Skipping background fetch!");
             }
           }
         } catch (e) {
           console.warn("⚠️ Could not verify cache freshness:", e);
         }
 
-        if (isCacheFresh) {
-          // Кеш свіжий, background оновлення не потрібне
-          return;
-        }
+        if (isCacheFresh) return;
 
         console.log("📂 Cache found but needs update, rendering initial data and updating in background...");
-        // Завжди оновлюємо дані у фоні, якщо кеш застарів
         setTimeout(async () => {
           try {
             console.log("🔄 Starting background data update...");
             const isChanged = await this.fetchDataFromAPI();
-            console.log(`✅ Background update complete. Data changed: ${isChanged}`);
-            // Оновлюємо відображення, якщо дані змінилися і користувач не відкрив модалку конкретного авто
             if (isChanged && this.state.selectedCar === null) {
               this.render();
-              // Змінюємо бейдж на ОНОВЛЕНО
               const lastUpdatedEl = document.getElementById("last-updated");
               if (lastUpdatedEl) {
                 lastUpdatedEl.innerHTML = this.appData.lastUpdated ? this.formatDate(this.appData.lastUpdated.split("T")[0]) : 'Щойно';
                 lastUpdatedEl.innerHTML += ' <span style="background:var(--success-color,#10b981);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">ОНОВЛЕНО</span>';
               }
-            } else if (!isChanged) {
-              console.log("Фонові дані ідентичні кешу, пропускаємо рендер");
             }
           } catch (error) {
             console.warn("Фонова помилка оновлення:", error);
           }
         }, 50);
       } else {
-        // Немає кешу або примусове оновлення - завантажуємо синхронно
         await this.fetchDataFromAPI();
       }
-
     } catch (error) {
       console.error("❌ Помилка завантаження даних:", error);
       this.showError(`Помилка завантаження: ${error.message}`);
     }
+  }
   }
 
   /**

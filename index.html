@@ -20,7 +20,25 @@
 
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Removed Instant Loading Script to always show loading screen initially -->
+    <!-- Pre-baked Data Loader -->
+    <script>
+        (async function() {
+            try {
+                // Пріоритет: localStorage (найсвіжіше), потім запечений JSON
+                const localData = localStorage.getItem("carAnalyticsData");
+                if (localData) return; // Вже є в локальному сховищі
+
+                const response = await fetch('data/cached-data.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    window.preBakedData = data;
+                    console.log("⚡ Instant data loaded from pre-baked file");
+                }
+            } catch (e) {
+                console.warn("⚠️ Failed to load pre-baked data:", e);
+            }
+        })();
+    </script>
 
     <!-- Main app as a module -->
     <script type="module" src="app.js"></script>

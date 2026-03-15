@@ -223,9 +223,11 @@ export class DataProcessor {
       },
     };
 
-    const carsCountElement = document.getElementById("cars-count");
-    if (carsCountElement) {
-      carsCountElement.textContent = allowedCars.length;
+    if (typeof document !== 'undefined') {
+      const carsCountElement = document.getElementById("cars-count");
+      if (carsCountElement) {
+        carsCountElement.textContent = allowedCars.length;
+      }
     }
 
     return { appData, maintenanceRegulations };

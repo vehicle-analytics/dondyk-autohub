@@ -1,8 +1,16 @@
 import { PARTS_CONFIG } from './partsConfig.js';
 
+const getEnv = (key, fallback) => {
+    if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
+    try {
+        if (import.meta.env && import.meta.env[key]) return import.meta.env[key];
+    } catch (e) {}
+    return fallback;
+};
+
 export const CONFIG = {
-    API_KEY: import.meta.env.VITE_GOOGLE_API_KEY || 'AIzaSyCcJ4qsKeLtMBAFp8jXDIAiyb3Cpp4OrCQ',
-    SPREADSHEET_ID: import.meta.env.VITE_SPREADSHEET_ID || '12-Z-tmRcjNLv7m8eFP_9rwCCERqPHCV9iVIdtL2vDck',
+    API_KEY: getEnv('VITE_GOOGLE_API_KEY', 'AIzaSyCcJ4qsKeLtMBAFp8jXDIAiyb3Cpp4OrCQ'),
+    SPREADSHEET_ID: getEnv('VITE_SPREADSHEET_ID', '12-Z-tmRcjNLv7m8eFP_9rwCCERqPHCV9iVIdtL2vDck'),
     SHEETS: {
         SCHEDULE: 'ГРАФІК ОБСЛУГОВУВАННЯ',
         HISTORY: 'Ответы на форму (1)',

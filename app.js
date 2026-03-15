@@ -203,7 +203,7 @@ class CarAnalyticsApp {
     }
   }
 
-  async loadData() {
+  async loadData(forceRefresh = false) {
     try {
       const cached = this.getCachedData();
       let hasCache = false;
@@ -230,9 +230,42 @@ class CarAnalyticsApp {
         }
       }
 
-      if (hasCache) {
-        console.log("📂 Cache found, rendering initial data and updating in background...");
-        // Завжди оновлюємо дані у фоні
+      if (hasCache && !forceRefresh) {
+        // Перевіряємо, чи кеш свіжий (зроблений після сьогоднішніх 06:00)
+        let isCacheFresh = false;
+        try {
+          const cacheTimeStr = localStorage.getItem("carAnalyticsCacheTime");
+          if (cacheTimeStr) {
+            const cacheTime = new Date(cacheTimeStr);
+            const now = new Date();
+            
+            // Визначаємо час останнього оновлення (сьогодні 06:00 або вчора 06:00)
+            const [hours, minutes] = (CONFIG.REFRESH_TIME || "06:00").split(":").map(Number);
+            const lastRefreshTime = new Date(now);
+            lastRefreshTime.setHours(hours, minutes, 0, 0);
+            
+            // Якщо зараз ще немає 06:00, то останнє оновлення було вчора о 06:00
+            if (now < lastRefreshTime) {
+              lastRefreshTime.setDate(lastRefreshTime.getDate() - 1);
+            }
+            
+            // Якщо кеш створений після останнього оновлення о 06:00, він свіжий
+            if (cacheTime >= lastRefreshTime) {
+              isCacheFresh = true;
+              console.log("🌟 Cache is fresh (newer than last 06:00). Skipping background fetch!");
+            }
+          }
+        } catch (e) {
+          console.warn("⚠️ Could not verify cache freshness:", e);
+        }
+
+        if (isCacheFresh) {
+          // Кеш свіжий, background оновлення не потрібне
+          return;
+        }
+
+        console.log("📂 Cache found but needs update, rendering initial data and updating in background...");
+        // Завжди оновлюємо дані у фоні, якщо кеш застарів
         setTimeout(async () => {
           try {
             console.log("🔄 Starting background data update...");
@@ -255,7 +288,7 @@ class CarAnalyticsApp {
           }
         }, 50);
       } else {
-        // Немає кешу - завантажуємо синхронно
+        // Немає кешу або примусове оновлення - завантажуємо синхронно
         await this.fetchDataFromAPI();
       }
 
@@ -5392,118 +5425,18 @@ class CarAnalyticsApp {
   // === ОНОВЛЕННЯ ТА ПОВІДОМЛЕННЯ ===
   async refreshData(force = false) {
     console.log("🔄 Оновлення даних...", force ? "(примусове)" : "");
-
     this.showNotification("Оновлення даних...", "info");
 
     try {
-      // Завжди очищаємо кеш при оновленні, щоб завантажити нові дані
-      // Це гарантує, що нові регламенти з Google Sheets будуть завантажені
-      localStorage.removeItem("carAnalyticsData");
-      console.log("🗑️ Кеш очищено");
-
-      // Очищаємо оброблені дані, щоб вони переобробилися з новими регламентами
+      // Очищаємо оброблені дані, щоб вони перерахувалися
       this.processedCars = null;
       this.filteredCars = null;
-      this.cachedData = null;
-      this.maintenanceRegulations = []; // Очищаємо регламенти, щоб вони перезавантажилися
-
-      // Спробуємо оновити через API з примусовим оновленням
-      try {
-        const API_BASE_URL = window.API_BASE_URL || "";
-        const response = await fetch(`${API_BASE_URL}/api/data?refresh=true`);
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            this.appData = result.data;
-            this.maintenanceRegulations = result.data.regulations || [];
-            this.processedCars = result.processedCars || [];
-
-            const cacheData = {
-              ...result.data,
-              processedCars: result.processedCars,
-            };
-            this.cacheData(cacheData);
-
-            this.showNotification("Дані успішно оновлено", "success");
-            this.render();
-            return;
-          }
-        }
-      } catch (apiError) {
-        console.warn(
-          "⚠️ Помилка оновлення через API, використовуємо fallback:",
-          apiError,
-        );
-      }
-
-      // Fallback на пряму обробку
-      await this.fetchDataFromSheets();
-
-      // Діагностичне логування тільки якщо DEBUG включений
-      const DEBUG = CONFIG.DEBUG;
-      if (DEBUG) {
-        console.log(
-          "📊 Після оновлення знайдено регламентів:",
-          this.maintenanceRegulations.length,
-        );
-        if (this.maintenanceRegulations.length > 0) {
-          // Перевіряємо регламенти для АА 4132 ХН
-          const normalizeLicense = (licenseStr) => {
-            if (!licenseStr) return "";
-            const cyrillicToLatin = {
-              А: "A",
-              В: "B",
-              Е: "E",
-              К: "K",
-              М: "M",
-              Н: "H",
-              О: "O",
-              Р: "P",
-              С: "C",
-              Т: "T",
-              У: "Y",
-              Х: "X",
-              І: "I",
-            };
-            let normalized = licenseStr.replace(/\s+/g, "").toUpperCase();
-            for (const [cyr, lat] of Object.entries(cyrillicToLatin)) {
-              normalized = normalized.replace(new RegExp(cyr, "g"), lat);
-            }
-            return normalized;
-          };
-          const aa4132xhRegs = this.maintenanceRegulations.filter((r) => {
-            if (
-              !r.licensePattern ||
-              r.licensePattern === "*" ||
-              r.licensePattern === ".*"
-            )
-              return false;
-            return normalizeLicense(r.licensePattern) === "AA4132XH";
-          });
-          if (aa4132xhRegs.length > 0) {
-            console.log(
-              `✅ Знайдено ${aa4132xhRegs.length} регламентів для АА 4132 ХН після оновлення:`,
-              aa4132xhRegs.map((r) => ({
-                partName: r.partName,
-                priority: r.priority,
-              })),
-            );
-          } else {
-            console.warn(
-              "⚠️ Регламенти для АА 4132 ХН не знайдені після оновлення!",
-            );
-          }
-        }
-      }
-
-      this.render();
-
+      
+      // Викликаємо loadData з параметром примусового оновлення
+      await this.loadData(true);
+      
       this.showNotification("Дані успішно оновлено", "success");
-      console.log(
-        "✅ Дані оновлено, знайдено регламентів:",
-        this.maintenanceRegulations.length,
-      );
+      console.log("✅ Дані оновлено");
     } catch (error) {
       console.error("❌ Помилка оновлення:", error);
       this.showNotification(

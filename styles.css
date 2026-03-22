@@ -115,11 +115,11 @@ body {
 }
 
 #cars-table-header th {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 25;
     /* щоб не "просвічувались" рядки під час скролу */
-    background: inherit;
+    background-color: #2563eb;
+    will-change: transform;
 }
 
 /* Фіксовані ширини колонок стабілізуємо таблицею fixed-layout */

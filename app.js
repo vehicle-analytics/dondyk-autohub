@@ -290,7 +290,6 @@ class CarAnalyticsApp {
       this.showError(`Помилка завантаження: ${error.message}`);
     }
   }
-  }
 
   /**
    * Завантажує дані з backend API
@@ -1263,16 +1262,8 @@ class CarAnalyticsApp {
                         ${this.generateFiltersHTML(cities, allCars)}
                     </div>
 
-                    <!-- Заповнювач для fixed шапки таблиці -->
-                    <div id="main-table-header-spacer" style="height: 0;"></div>
-                    
-                    <!-- Шапка таблиці (закріплена під фільтрами) -->
-                    <div id="main-table-header-container" class="bg-white rounded-b-xl shadow-lg border border-gray-200 border-t-0 overflow-hidden">
-                        ${this.generateTableHeaderHTML(importantParts)}
-                    </div>
-
-                    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200" id="main-table-container">
-                        ${this.generateCarsTableBody(filteredCars, importantParts)}
+                    <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200 mt-2" id="main-table-container">
+                        ${this.generateCarsTable(filteredCars, importantParts)}
                     </div>
 
                     <div class="mt-4 bg-white rounded-xl shadow-lg p-4 border border-gray-200">
@@ -1630,7 +1621,7 @@ class CarAnalyticsApp {
             <div class="scroll-hint-container">
                 <div class="overflow-x-auto w-full">
                     <table id="cars-table" class="w-full min-w-[1100px]">
-                        <thead id="cars-table-header" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                        <thead id="cars-table-header" class="bg-blue-600 text-white">
                             <tr>
                                 <th class="text-center font-bold uppercase w-[100px]" style="padding-left: 0.7rem; padding-right: 0.7rem; padding-top: 0.5rem; padding-bottom: 0.5rem; font-size: 0.625rem;">
                                     <div class="cursor-pointer hover:bg-white/10 p-1 rounded transition-colors flex items-center justify-center"
@@ -5638,137 +5629,54 @@ class CarAnalyticsApp {
 
   // === ЗАКРІПЛЕННЯ ФІЛЬТРІВ ТА ЗАГОЛОВКА ТАБЛИЦІ НА ГОЛОВНІЙ СТОРІНЦІ ===
   initStickyFiltersAndTable() {
-    const tableHeaderContainer = document.getElementById(
-      "main-table-header-container",
-    );
     const filtersContainer = document.getElementById("main-filters-container");
     const tableHeader = document.getElementById("cars-table-header");
-    const tableHeaderSpacer = document.getElementById(
-      "main-table-header-spacer",
-    );
     const filtersSpacer = document.getElementById("main-filters-spacer");
-    const tableContainer = document.getElementById("main-table-container");
     const pageHeader = document.getElementById("main-page-header");
     const statsCards = document.getElementById("main-stats-cards");
 
-    if (!tableHeaderContainer || !filtersContainer || !tableHeader) return;
+    if (!filtersContainer || !tableHeader) return;
 
-    // Зберігаємо початкову позицію фільтрів
     let filtersInitialTop = 0;
     let isFixed = false;
-    let filtersInitialWidth = 0;
-    let filtersInitialLeft = 0;
-    let tableInitialWidth = 0;
-    let tableInitialLeft = 0;
 
-    // Функція для обчислення початкової позиції
     const calculateInitialPosition = () => {
-      if (filtersContainer) {
-        const filtersRect = filtersContainer.getBoundingClientRect();
+      if (filtersSpacer) {
+        const spacerRect = filtersSpacer.getBoundingClientRect();
         filtersInitialTop =
-          filtersRect.top +
+          spacerRect.top +
           (window.pageYOffset || document.documentElement.scrollTop);
-        filtersInitialWidth = filtersRect.width;
-        filtersInitialLeft = filtersRect.left;
       } else if (pageHeader) {
         const headerRect = pageHeader.getBoundingClientRect();
         const headerHeight = headerRect.height;
         const statsHeight = statsCards ? statsCards.offsetHeight : 0;
-        filtersInitialTop = headerHeight + (statsHeight + 12); // 12px = margin-bottom
+        filtersInitialTop = headerHeight + (statsHeight + 12);
       }
     };
 
-    // Функція для оновлення позицій
     const updatePositions = (shouldBeFixed) => {
       try {
-        if (!tableHeaderContainer || !filtersContainer || !tableHeader) return;
+        if (!filtersContainer || !tableHeader) return;
 
-        // Отримуємо висоти
-        const headerHeight = tableHeaderContainer.offsetHeight;
         const filtersHeight = filtersContainer.offsetHeight;
-
-        // Отримуємо таблицю та контейнер
-        const table = document.getElementById("cars-table");
-        const tableContainerWrapper = table
-          ? table.closest(".overflow-x-auto")
-          : null;
+        const thElements = tableHeader.querySelectorAll("th");
 
         if (shouldBeFixed && !isFixed) {
-          // Зберігаємо поточні розміри перед fixed
           calculateInitialPosition();
 
-          // Закріплюємо фільтри вгорі екрана
           filtersContainer.classList.add("fixed");
           filtersContainer.style.setProperty("top", "0", "important");
           filtersContainer.style.setProperty("left", "0", "important");
           filtersContainer.style.setProperty("right", "0", "important");
           filtersContainer.style.setProperty("width", "100%", "important");
+          filtersContainer.style.setProperty("z-index", "40", "important");
 
-          // Оновлюємо spacer для фільтрів
           if (filtersSpacer) {
-            filtersSpacer.style.setProperty(
-              "height",
-              `${filtersHeight}px`,
-              "important",
-            );
-          }
-
-          // Закріплюємо шапку таблиці під фільтрами
-          tableHeaderContainer.classList.add("fixed");
-          tableHeaderContainer.style.setProperty(
-            "top",
-            `${filtersHeight}px`,
-            "important",
-          );
-
-          // Синхронізуємо ширину шапки з тілом таблиці
-          if (tableContainerWrapper) {
-            const wrapperRect = tableContainerWrapper.getBoundingClientRect();
-            const wrapperWidth = wrapperRect.width;
-            const wrapperLeft = wrapperRect.left;
-
-            tableHeaderContainer.style.setProperty(
-              "left",
-              `${wrapperLeft}px`,
-              "important",
-            );
-            tableHeaderContainer.style.setProperty(
-              "width",
-              `${wrapperWidth}px`,
-              "important",
-            );
-            tableHeaderContainer.style.setProperty(
-              "min-width",
-              `${wrapperWidth}px`,
-              "important",
-            );
-            tableHeaderContainer.style.setProperty(
-              "max-width",
-              `${wrapperWidth}px`,
-              "important",
-            );
-          } else {
-            tableHeaderContainer.style.setProperty("left", "0", "important");
-            tableHeaderContainer.style.setProperty("right", "0", "important");
-            tableHeaderContainer.style.setProperty(
-              "width",
-              "100%",
-              "important",
-            );
-          }
-
-          // Оновлюємо spacer для шапки
-          if (tableHeaderSpacer) {
-            tableHeaderSpacer.style.setProperty(
-              "height",
-              `${headerHeight}px`,
-              "important",
-            );
+            filtersSpacer.style.setProperty("height", `${filtersHeight}px`, "important");
           }
 
           isFixed = true;
         } else if (!shouldBeFixed && isFixed) {
-          // Повертаємо до нормального стану
           filtersContainer.classList.remove("fixed");
           filtersContainer.style.removeProperty("top");
           filtersContainer.style.removeProperty("left");
@@ -5779,73 +5687,13 @@ class CarAnalyticsApp {
             filtersSpacer.style.setProperty("height", "0", "important");
           }
 
-          tableHeaderContainer.classList.remove("fixed");
-          tableHeaderContainer.style.removeProperty("top");
-          tableHeaderContainer.style.removeProperty("left");
-          tableHeaderContainer.style.removeProperty("right");
-          tableHeaderContainer.style.removeProperty("width");
-
-          if (tableHeaderSpacer) {
-            tableHeaderSpacer.style.setProperty("height", "0", "important");
-          }
-
           isFixed = false;
         }
 
-        // Оновлюємо позицію, якщо вони fixed
         if (isFixed) {
           const currentFiltersHeight = filtersContainer.offsetHeight;
-          const currentHeaderHeight = tableHeaderContainer.offsetHeight;
-
-          // Оновлюємо позицію шапки під фільтрами
-          tableHeaderContainer.style.setProperty(
-            "top",
-            `${currentFiltersHeight}px`,
-            "important",
-          );
-
-          // Синхронізуємо ширину шапки з тілом таблиці
-          if (tableContainerWrapper) {
-            const wrapperRect = tableContainerWrapper.getBoundingClientRect();
-            const wrapperWidth = wrapperRect.width;
-            const wrapperLeft = wrapperRect.left;
-
-            tableHeaderContainer.style.setProperty(
-              "left",
-              `${wrapperLeft}px`,
-              "important",
-            );
-            tableHeaderContainer.style.setProperty(
-              "width",
-              `${wrapperWidth}px`,
-              "important",
-            );
-            tableHeaderContainer.style.setProperty(
-              "min-width",
-              `${wrapperWidth}px`,
-              "important",
-            );
-            tableHeaderContainer.style.setProperty(
-              "max-width",
-              `${wrapperWidth}px`,
-              "important",
-            );
-          }
-
-          // Оновлюємо spacers
           if (filtersSpacer) {
-            filtersSpacer.style.setProperty(
-              "height",
-              `${currentFiltersHeight}px`,
-              "important",
-            );
-          }
-          if (tableHeaderSpacer) {
-            tableHeaderSpacer.style.setProperty(
-              "height",
-              `${currentHeaderHeight}px`,
-              "important",
-            );
+            filtersSpacer.style.setProperty("height", `${currentFiltersHeight}px`, "important");
           }
         }
       } catch (error) {
@@ -5853,31 +5701,40 @@ class CarAnalyticsApp {
       }
     };
 
-    // Обчислюємо початкову позицію після невеликої затримки для завантаження DOM
     setTimeout(() => {
       calculateInitialPosition();
+      this.filtersScrollHandler();
     }, 100);
 
-    // Створюємо обробник прокрутки
     this.filtersScrollHandler = () => {
       try {
-        const scrollTop =
-          window.pageYOffset || document.documentElement.scrollTop;
-        // Перевіряємо, чи потрібно закріпити шапку та фільтри
-        // Закріплюємо, коли прокрутили більше, ніж початкова позиція шапки
-        let headerInitialTop = filtersInitialTop;
-        if (tableHeaderContainer && !isFixed) {
-          const rect = tableHeaderContainer.getBoundingClientRect();
-          headerInitialTop = rect.top + scrollTop;
-        }
-        const shouldBeFixed = scrollTop >= headerInitialTop;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const shouldBeFixed = scrollTop >= filtersInitialTop;
         updatePositions(shouldBeFixed);
+
+        const tableContainer = document.getElementById("main-table-container");
+        if (tableContainer && tableHeader) {
+          const tableRect = tableContainer.getBoundingClientRect();
+          const currentFiltersHeight = filtersContainer.classList.contains("fixed") ? filtersContainer.offsetHeight : 0;
+          
+          let offsetY = 0;
+          if (tableRect.top < currentFiltersHeight) {
+            offsetY = currentFiltersHeight - tableRect.top;
+            const maxOffset = tableContainer.offsetHeight - tableHeader.offsetHeight;
+            if (offsetY > maxOffset) offsetY = maxOffset;
+            if (offsetY < 0) offsetY = 0;
+          }
+          
+          const thElements = tableHeader.querySelectorAll("th");
+          thElements.forEach(th => {
+              th.style.transform = offsetY > 0 ? `translateY(${Math.max(0, offsetY)}px)` : '';
+          });
+        }
       } catch (error) {
         console.error("Помилка в обробнику прокрутки:", error);
       }
     };
 
-    // Оновлюємо позиції при зміні розміру вікна
     const resizeHandler = () => {
       try {
         calculateInitialPosition();
@@ -5889,26 +5746,19 @@ class CarAnalyticsApp {
       }
     };
 
-    window.addEventListener("scroll", this.filtersScrollHandler, {
-      passive: true,
-    });
+    window.addEventListener("scroll", this.filtersScrollHandler, { passive: true });
     window.addEventListener("resize", resizeHandler, { passive: true });
 
-    // Використовуємо ResizeObserver для моніторингу зміни розміру шапки та фільтрів
     if (window.ResizeObserver) {
       this.filtersResizeObserver = new ResizeObserver(() => {
         if (isFixed) {
           updatePositions(true);
         }
       });
-      this.filtersResizeObserver.observe(tableHeaderContainer);
       this.filtersResizeObserver.observe(filtersContainer);
     }
 
-    // Зберігаємо обробник для очищення
     this.stickyFiltersResizeHandler = resizeHandler;
-
-    // Перевіряємо початковий стан
     this.filtersScrollHandler();
   }
 
@@ -5928,22 +5778,25 @@ class CarAnalyticsApp {
     }
     // Скидаємо позиції та стилі
     const filtersContainer = document.getElementById("main-filters-container");
-    const tableHeader = document.getElementById("cars-table-header");
     const filtersSpacer = document.getElementById("main-filters-spacer");
     const tableContainer = document.getElementById("main-table-container");
+    const tableHeader = document.getElementById("cars-table-header");
     if (filtersContainer) {
       filtersContainer.classList.remove("fixed");
       filtersContainer.style.removeProperty("top");
-    }
-    if (tableHeader) {
-      tableHeader.classList.remove("fixed");
-      tableHeader.style.removeProperty("top");
     }
     if (filtersSpacer) {
       filtersSpacer.style.removeProperty("height");
     }
     if (tableContainer) {
       tableContainer.style.removeProperty("padding-top");
+    }
+    if (tableHeader) {
+      const thElements = tableHeader.querySelectorAll("th");
+      thElements.forEach(th => {
+          th.style.removeProperty("top");
+          th.style.removeProperty("transform");
+      });
     }
   }
 

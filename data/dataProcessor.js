@@ -87,7 +87,7 @@ export class DataProcessor {
       if (row.length < 8) continue;
 
       const car = String(row[CONSTANTS.COL_CAR] || "").trim();
-      if (!car || !allowedCarsSet.has(car)) continue;
+      if (!car) continue; // Only skip empty license plates
 
       const mileageStr = String(row[CONSTANTS.COL_MILEAGE] || "").trim();
       let mileage = 0;
@@ -95,12 +95,8 @@ export class DataProcessor {
       if (mileageStr) {
         const cleanStr = mileageStr.replace(/[\s,]/g, "");
         mileage = parseFloat(cleanStr);
-        if (isNaN(mileage)) continue;
-        // Конвертація в тисячі (якщо потрібно)
-        mileage = mileage;
+        if (isNaN(mileage)) mileage = 0;
       }
-
-      if (mileage === 0) continue;
 
       // Перевірка статусу запиту
       const requestStatus =
@@ -116,34 +112,23 @@ export class DataProcessor {
         row.length > CONSTANTS.COL_DATE_NEEDED && row[CONSTANTS.COL_DATE_NEEDED]
           ? row[CONSTANTS.COL_DATE_NEEDED]
           : row[CONSTANTS.COL_DATE];
+      
+      let isoDate = "";
       if (date) {
         const originalDate = String(date).trim();
-
-        if (originalDate.includes(".")) {
-          const parts = originalDate.split(".");
-          if (parts.length === 3 && parts[2] && parts[2].length === 4) {
-            date = originalDate;
-          } else {
-            const dateObj = parseDate(originalDate);
-            if (dateObj) {
-              const day = String(dateObj.getDate()).padStart(2, "0");
-              const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-              const year = dateObj.getFullYear();
-              date = `${day}.${month}.${year}`;
-            } else {
-              date = originalDate;
-            }
-          }
+        const dateObj = parseDate(originalDate);
+        
+        if (dateObj && !isNaN(dateObj.getTime())) {
+          // Зберігаємо форматовану дату для відображення
+          const day = String(dateObj.getDate()).padStart(2, "0");
+          const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+          const year = dateObj.getFullYear();
+          date = `${day}.${month}.${year}`;
+          // Зберігаємо ISO дату для розрахунків
+          isoDate = dateObj.toISOString();
         } else {
-          const dateObj = parseDate(originalDate);
-          if (dateObj) {
-            const day = String(dateObj.getDate()).padStart(2, "0");
-            const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-            const year = dateObj.getFullYear();
-            date = `${day}.${month}.${year}`;
-          } else {
-            date = originalDate;
-          }
+          // Якщо не вдалося розпарсити, залишаємо оригінал (хоча це навряд чи спрацює в аналітиці)
+          isoDate = "";
         }
       }
 
@@ -157,13 +142,20 @@ export class DataProcessor {
         row.length > CONSTANTS.COL_PRICE
           ? parseNumber(row[CONSTANTS.COL_PRICE])
           : 0;
-      const totalWithVAT =
+      
+      // В сумі витрат НЕ враховувати заявки зі статусом "відмова"
+      let totalWithVAT =
         row.length > CONSTANTS.COL_TOTAL_WITH_VAT
           ? parseNumber(row[CONSTANTS.COL_TOTAL_WITH_VAT])
           : 0;
+      
+      if (isRejected) {
+        totalWithVAT = 0;
+      }
 
       records.push({
         date: date || "",
+        isoDate: isoDate,
         city: city,
         car: car,
         mileage: mileage,
@@ -180,17 +172,18 @@ export class DataProcessor {
         quantity: quantity,
         price: price,
         totalWithVAT: totalWithVAT,
-        status:
-          row.length > CONSTANTS.COL_STATUS
-            ? String(row[CONSTANTS.COL_STATUS] || "").trim()
-            : "",
+        status: requestStatus,
       });
 
-      // Оновлюємо пробіг тільки для записів без статусу "відмова"
-      if (!isRejected && mileage > (currentMileages[car] || 0)) {
+      // Оновлюємо пробіг тільки для записів без статусу "відмова" та з валідним пробігом
+      if (!isRejected && mileage > 0 && mileage > (currentMileages[car] || 0)) {
         currentMileages[car] = mileage;
       }
     }
+
+    console.log(`✅ Оброблено записів історії: ${records.length}`);
+    const totalExp = records.reduce((sum, r) => sum + r.totalWithVAT, 0);
+    console.log(`💰 Загальна сума витрат (без відмов): ${totalExp.toFixed(2)}`);
 
     // Compile part keywords into regexes for O(1) matching later
     const compiledPartKeywords = {};

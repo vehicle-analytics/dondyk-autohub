@@ -708,6 +708,8 @@ export function createFlexiblePatternsCached(keywordPhrase) {
 
 
 // Додаткові утиліти для роботи з категоріями
+const categoryCache = new Map();
+
 export const EXPENSE_CATEGORIES_UTILS = {
   // Метод для отримання всіх категорій
   getAllCategories: function () {
@@ -721,8 +723,15 @@ export const EXPENSE_CATEGORIES_UTILS = {
     }
 
     const desc = description.toLowerCase().trim();
+    
+    // 1. Перевірка кешу
+    if (categoryCache.has(desc)) {
+      return categoryCache.get(desc);
+    }
+    
+    let result = "Інші витрати";
 
-    // Спеціальні випадки для уникнення неоднозначності
+    // 2. Спеціальні випадки (найшвидші перевірки)
     if (desc.includes("диск")) {
       if (
         desc.includes("колес") ||
@@ -730,117 +739,46 @@ export const EXPENSE_CATEGORIES_UTILS = {
         desc.includes("литий") ||
         desc.includes("штамп")
       ) {
-        return "Ходова частина";
-      }
-      if (desc.includes("гальм") || desc.includes("тормоз")) {
-        return "Гальмівна система";
+        result = "Ходова частина";
+      } else if (desc.includes("гальм") || desc.includes("тормоз")) {
+        result = "Гальмівна система";
       }
     }
 
-    // Перевіряємо категорії в порядку пріоритету
-    const priorityOrder = [
-      "Гальмівна система", // Найвищий пріоритет - безпека
-      "ТО та обслуговування", // Тепер включає ГРМ
-      "Двигун",
-      "Трансмісія",
-      "Ходова частина",
-      "Електрика",
-      "Система вихлопу",
-      "Кузов та салон",
-      "Мийка авто",
-      "Витратні матеріали",
-    ];
+    // 3. Пріоритетний пошук по регулярних виразах (O(Categories * Patterns))
+    if (result === "Інші витрати") {
+      const priorityOrder = [
+        "Гальмівна система",
+        "ТО та обслуговування",
+        "Двигун",
+        "Трансмісія",
+        "Ходова частина",
+        "Електрика",
+        "Система вихлопу",
+        "Кузов та салон",
+        "Мийка авто",
+        "Витратні матеріали",
+      ];
 
-    for (const category of priorityOrder) {
-      const patterns = EXPENSE_CATEGORIES[category];
-      if (patterns && patterns.length > 0) {
-        for (const pattern of patterns) {
-          if (pattern.test(desc)) {
-            return category;
+      for (const category of priorityOrder) {
+        const patterns = EXPENSE_CATEGORIES[category];
+        if (patterns) {
+          // Використовуємо .some для раннього виходу
+          if (patterns.some(pattern => pattern.test(desc))) {
+            result = category;
+            break;
           }
         }
       }
     }
 
-    // Додаткова перевірка з використанням гнучких патернів для складних фраз
-    // Перевіряємо опис на наявність ключових слів з кожної категорії
-    for (const category of priorityOrder) {
-      const patterns = EXPENSE_CATEGORIES[category];
-      if (patterns && patterns.length > 0) {
-        // Збираємо всі ключові слова з патернів категорії
-        const categoryKeywords = new Set();
-        for (const pattern of patterns) {
-          const patternStr = pattern.toString();
-          // Витягуємо ключові слова з патерну (прибираємо regex символи)
-          const cleanStr = patternStr
-            .replace(/[\/\^$.*+?()[\]{}|\\]/g, " ")
-            .replace(/\w\*/g, "")
-            .replace(/\s+/g, " ")
-            .trim();
-
-          const words = cleanStr
-            .split(/\s+/)
-            .filter(
-              (w) =>
-                w.length > 2 &&
-                !["test", "i", "brake", "timing", "belt", "w"].includes(
-                  w.toLowerCase(),
-                ),
-            );
-
-          words.forEach((w) => {
-            const cleanWord = w.toLowerCase().trim();
-            if (cleanWord.length > 2) {
-              categoryKeywords.add(cleanWord);
-            }
-          });
-        }
-
-        // Якщо в описі знайдено кілька ключових слів з категорії, створюємо гнучкі патерни
-        const foundKeywords = Array.from(categoryKeywords).filter((kw) => {
-          // Перевіряємо як точний збіг, так і варіації
-          const variations = getWordVariations(kw);
-          return variations.some((v) => desc.includes(v));
-        });
-
-        if (foundKeywords.length >= 2) {
-          // Створюємо гнучкі патерни для комбінацій знайдених ключових слів
-          // Спробуємо різні комбінації з 2-3 ключових слів
-          for (let i = 0; i < foundKeywords.length; i++) {
-            for (let j = i + 1; j < foundKeywords.length; j++) {
-              const keywordPhrase = [foundKeywords[i], foundKeywords[j]].join(
-                " ",
-              );
-              const flexiblePatterns =
-                createFlexiblePatternsOriginal(keywordPhrase);
-              for (const flexPattern of flexiblePatterns) {
-                if (flexPattern.test(desc)) {
-                  return category;
-                }
-              }
-
-              // Якщо є третє слово, додаємо його
-              if (j + 1 < foundKeywords.length) {
-                const keywordPhrase3 = [
-                  foundKeywords[i],
-                  foundKeywords[j],
-                  foundKeywords[j + 1],
-                ].join(" ");
-                const flexiblePatterns3 =
-                  createFlexiblePatternsOriginal(keywordPhrase3);
-                for (const flexPattern of flexiblePatterns3) {
-                  if (flexPattern.test(desc)) {
-                    return category;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return "Інші витрати";
+    // 4. Гнучкий пошук (Тільки якщо не знайдено нічого іншого і опис достатньо довгий)
+    // ОБМЕЖЕННЯ: Вимкнено для стандартного пошуку через високу складність,
+    // використовувати лише в analyzeDescription
+    
+    // Зберігаємо в кеш
+    categoryCache.set(desc, result);
+    return result;
   },
 
   // Метод для детального тестування опису

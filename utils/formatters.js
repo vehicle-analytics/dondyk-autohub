@@ -143,11 +143,25 @@ export class Formatters {
    * Парсить дату з різних форматів
    */
   static parseDate(dateString) {
-    if (!dateString) return null;
+    if (dateString === null || dateString === undefined || dateString === "") return null;
+
+    // Якщо це вже є об'єктом Date
+    if (dateString instanceof Date) {
+      return isNaN(dateString.getTime()) ? null : dateString;
+    }
+
+    // Якщо це число (серійний номер дати в Excel/Sheets)
+    if (typeof dateString === "number" || (!isNaN(dateString) && !isNaN(parseFloat(dateString)) && !String(dateString).includes("."))) {
+      const serial = parseFloat(dateString);
+      // Базова дата для Excel/Sheets: 30 грудня 1899 року (це 0 в серійному форматі)
+      const excelEpoch = new Date(1899, 11, 30);
+      const date = new Date(excelEpoch.getTime() + serial * 86400000);
+      if (!isNaN(date.getTime())) return date;
+    }
 
     const str = String(dateString).trim();
 
-    // Спочатку намагаємося парсити DD.MM.YYYY або MM.DD.YYYY формат
+    // Спробуємо парсити DD.MM.YYYY або MM.DD.YYYY формат
     const dotParts = str.split(".");
     if (dotParts.length === 3) {
       const first = parseInt(dotParts[0], 10);
@@ -157,78 +171,49 @@ export class Formatters {
       if (!isNaN(first) && !isNaN(second) && !isNaN(third) && third > 0) {
         let day, month, year;
 
-        // Визначаємо формат: якщо перше число > 12, то це точно день (DD.MM.YYYY)
-        // Якщо перше <= 12 і друге > 12, то це MM.DD.YYYY
-        // Якщо обидва <= 12, спробуємо як DD.MM.YYYY (європейський формат за замовчуванням)
+        // Покращена логіка розпізнавання:
+        // DD.MM.YYYY - день може бути більше 12
+        // MM.DD.YYYY - місяць не може бути більше 12
         if (first > 12) {
-          // Точно DD.MM.YYYY
-          day = first;
-          month = second;
-          year = third;
+          day = first; month = second; year = third;
         } else if (second > 12) {
-          // Точно MM.DD.YYYY
-          month = first;
-          day = second;
-          year = third;
+          month = first; day = second; year = third;
         } else {
-          // Обидва <= 12, спробуємо як DD.MM.YYYY (європейський формат)
-          day = first;
-          month = second;
-          year = third;
+          // За замовчуванням DD.MM.YYYY (Україна)
+          day = first; month = second; year = third;
         }
 
-        if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year > 0) {
-          const date = new Date(year, month - 1, day);
-          if (
-            !isNaN(date.getTime()) &&
-            date.getDate() === day &&
-            date.getMonth() === month - 1 &&
-            date.getFullYear() === year
-          ) {
-            return date;
-          }
-        }
-      }
-    }
-
-    // Потім намагаємося парсити YYYY-MM-DD формат
-    const dashParts = String(dateString).split("-");
-    if (dashParts.length === 3) {
-      const year = parseInt(dashParts[0], 10);
-      const month = parseInt(dashParts[1], 10);
-      const day = parseInt(dashParts[2], 10);
-
-      if (
-        !isNaN(day) &&
-        !isNaN(month) &&
-        !isNaN(year) &&
-        day >= 1 &&
-        day <= 31 &&
-        month >= 1 &&
-        month <= 12 &&
-        year > 0
-      ) {
         const date = new Date(year, month - 1, day);
-        if (
-          !isNaN(date.getTime()) &&
-          date.getDate() === day &&
-          date.getMonth() === month - 1 &&
-          date.getFullYear() === year
-        ) {
+        if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
           return date;
         }
       }
     }
 
-    // Якщо нічого не спрацювало, спробуємо стандартний парсер
-    try {
-      const date = new Date(dateString);
-      if (!isNaN(date.getTime())) {
+    // Спробуємо парсити YYYY-MM-DD або DD-MM-YYYY
+    const dashParts = str.split("-");
+    if (dashParts.length === 3) {
+      let year, month, day;
+      if (dashParts[0].length === 4) {
+        year = parseInt(dashParts[0], 10);
+        month = parseInt(dashParts[1], 10);
+        day = parseInt(dashParts[2], 10);
+      } else {
+        day = parseInt(dashParts[0], 10);
+        month = parseInt(dashParts[1], 10);
+        year = parseInt(dashParts[2], 10);
+      }
+      
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
         return date;
       }
-    } catch (e) {
-      // Ігноруємо помилки
     }
+
+    try {
+      const date = new Date(str);
+      if (!isNaN(date.getTime())) return date;
+    } catch (e) {}
 
     return null;
   }

@@ -68,12 +68,25 @@
 
         .metric-card {
             transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 120px;
         }
 
         .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
         }
+
+        /* Themed Metric Cards */
+        .card-green { background-color: #f0fdf4; border: 1px solid #dcfce7; }
+        .card-blue { background-color: #eff6ff; border: 1px solid #dbeafe; }
+        .card-purple { background-color: #f5f3ff; border: 1px solid #ede9fe; }
+        .card-orange { background-color: #fffaf0; border: 1px solid #ffedd5; }
+        .card-teal { background-color: #f0fdfa; border: 1px solid #ccfbf1; }
 
         .sticky-filters {
             position: relative;
@@ -226,7 +239,7 @@
                             <span class="text-sm font-semibold text-gray-700">Період:</span>
                             <div class="flex flex-wrap gap-1">
                                 <button
-                                    class="filter-period px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                                    class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                                     data-period="day">День</button>
                                 <button
                                     class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
@@ -241,7 +254,7 @@
                                     class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                                     data-period="halfyear">Пів року</button>
                                 <button
-                                    class="filter-period px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                    class="filter-period px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                                     data-period="year">Рік</button>
                             </div>
                         </div>
@@ -280,8 +293,7 @@
 
             <!-- Main Content -->
             <div class="max-w-7xl mx-auto px-4 pb-8">
-                <!-- Dashboard Metrics -->
-                <div id="metrics-dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 fade-in">
+                <div id="metrics-dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 fade-in">
                     <!-- Metrics will be rendered here -->
                 </div>
 

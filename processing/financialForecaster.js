@@ -128,6 +128,47 @@ export class FinancialForecaster {
   }
 
   /**
+   * Розраховує консолідований ПОМІСЯЧНИЙ прогноз для всього автопарку
+   * @param {Array} cars - Список автомобілів
+   * @param {Array} regulations - Регламенти ТО
+   * @param {Number} monthsCount - Кількість місяців прогнозу
+   * @returns {Array} Масив з сумами прогнозу на кожен місяць
+   */
+  calculateFleetMonthlyForecast(cars, regulations, monthsCount = 12) {
+    const monthlyTotals = new Array(monthsCount).fill(0);
+    
+    cars.forEach(car => {
+      const avgMonthlyBase = this.calculateAverageMonthlySpent(car.history);
+      const amm = this.calculateAMM(car);
+      
+      for (let m = 0; m < monthsCount; m++) {
+        // 1. Базові витрати (завжди однакові щомісяця)
+        monthlyTotals[m] += avgMonthlyBase;
+        
+        // 2. Заплановані роботи (ТО)
+        for (const partName in car.parts) {
+          const part = car.parts[partName];
+          const regulation = CarProcessor.findRegulationForCar(car.license, car.model, car.year, partName, regulations);
+          
+          if (regulation && regulation.normalValue !== 'chain') {
+            // Перевіряємо, чи спрацьовує регламент САМЕ в цьому місяці m
+            if (this.checkRegulationTrigger(part, regulation, m, amm)) {
+              monthlyTotals[m] += this.getEstimatedPartCost(partName, car.history);
+            }
+          }
+          
+          // 3. Рекомендовані роботи (критичний стан) — відносимо до першого місяця прогнозу (це найтерміновіше)
+          if (m === 0 && part && (part.status === 'critical' || part.status === 'warning')) {
+            monthlyTotals[m] += this.getEstimatedPartCost(partName, car.history);
+          }
+        }
+      }
+    });
+    
+    return monthlyTotals;
+  }
+
+  /**
    * Розраховує середній пробіг (AMM) — ідентично до app.js getAverageMonthlyMileage
    */
   calculateAMM(car) {

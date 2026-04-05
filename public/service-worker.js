@@ -107,20 +107,57 @@ async function networkFirst(request) {
   }
 }
 
-// Activate event - clean up old caches
-self.addEventListener("activate", (event) => {
-  const cacheWhitelist = [STATIC_CACHE, API_CACHE];
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (!cacheWhitelist.includes(cacheName)) {
-            console.log("[SW] Deleting old cache:", cacheName);
-            return caches.delete(cacheName);
-          }
-        }),
-      );
-    }),
-  );
-  self.clients.claim();
+// Periodic Background Sync - оновлення даних о 06:00
+self.addEventListener("periodicsync", (event) => {
+  if (event.tag === "update-car-data") {
+    console.log("[SW] Periodic background sync triggered");
+    event.waitUntil(updateDataInBackground());
+  }
 });
+
+// Функція для оновлення даних у фоні
+async function updateDataInBackground() {
+  try {
+    // В реальному сценарії тут був би запит до API або Google Sheets
+    // Але Service Worker не має прямого доступу до IndexedDB напряму без бібліотек або хитрих обгортку
+    // Ми можемо просто відправити повідомлення всім клієнтам, щоб вони оновилися при наступному відкритті
+    // Або спробувати виконати fetch для прогріву кешу HTTP (якщо він є)
+    console.log("[SW] Background update started...");
+    
+    // Повідомляємо клієнтів (якщо вони відкриті)
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({ type: 'BACKGROUND_UPDATE_TRIGGERED' });
+    });
+    
+    return true;
+  } catch (error) {
+    console.error("[SW] Background update failed:", error);
+    return false;
+  }
+}
+
+// Повідомлення від основної нитки
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === "REGISTER_PERIODIC_SYNC") {
+    registerPeriodicSync();
+  }
+});
+
+async function registerPeriodicSync() {
+  const registration = await self.registration;
+  if ("periodicSync" in registration) {
+    try {
+      await registration.periodicSync.register("update-car-data", {
+        minInterval: 24 * 60 * 60 * 1000, // 24 години
+      });
+      console.log("[SW] Periodic Sync registered successfully");
+    } catch (error) {
+      console.warn("[SW] Periodic Sync could not be registered:", error);
+    }
+  }
+}

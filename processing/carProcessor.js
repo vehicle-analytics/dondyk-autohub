@@ -430,20 +430,37 @@ export class CarProcessor {
       }
 
       // Якщо brandPattern = "*", то регламент застосовується для всіх марок (не перевіряємо марку)
-      if (regulation.brandPattern !== "*" && regulation.brandPattern !== ".*") {
-        if (regulation.brandRegex) {
-          if (!regulation.brandRegex.test(model)) {
-            continue;
+      if (regulation.brandPattern && regulation.brandPattern !== "*" && regulation.brandPattern !== ".*") {
+        // Перевіряємо, чи є brandRegex методом (може бути втрачено при серіалізації в Worker)
+        if (!regulation.brandRegex || typeof regulation.brandRegex.test !== 'function') {
+          try {
+            regulation.brandRegex = new RegExp(regulation.brandPattern, "i");
+          } catch(e) {
+            regulation.brandRegex = null;
           }
+        }
+        
+        if (regulation.brandRegex && !regulation.brandRegex.test(model)) {
+          continue;
         }
       }
 
       // Якщо modelPattern = "*", то регламент застосовується для всіх моделей (не перевіряємо модель)
-      if (regulation.modelPattern !== "*" && regulation.modelPattern !== ".*") {
-        if (regulation.modelRegex) {
-          if (!regulation.modelRegex.test(model)) {
-            continue;
+      if (regulation.modelPattern && regulation.modelPattern !== "*" && regulation.modelPattern !== ".*") {
+        // Перевіряємо, чи є modelRegex методом
+        if (!regulation.modelRegex || typeof regulation.modelRegex.test !== 'function') {
+          try {
+            let pattern = regulation.modelPattern;
+            if (pattern.startsWith(".")) pattern = pattern.replace(/^\./, "(?:^|\\s)");
+            if (pattern.endsWith(".")) pattern = pattern.replace(/\.$/, "(?:\\s|$)");
+            regulation.modelRegex = new RegExp(pattern, "i");
+          } catch(e) {
+            regulation.modelRegex = null;
           }
+        }
+        
+        if (regulation.modelRegex && !regulation.modelRegex.test(model)) {
+          continue;
         }
       }
 

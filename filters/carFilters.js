@@ -14,21 +14,9 @@ export class CarFilters {
       selectedHealthStatus,
       selectedModel,
     } = state;
-    const term = searchTerm.toLowerCase();
-    const isAllCities = selectedCity === "Всі міста";
 
     return cars.filter((car) => {
-      // Smart search: matching all words in any order
-      if (term) {
-        const words = term.split(/\s+/).filter(w => w.length > 0);
-        const carStr = [car.car, car.city, car.model, car.license]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        const allWordsMatch = words.every(word => carStr.includes(word));
-        if (!allWordsMatch) return false;
-      }
+      const isAllCities = selectedCity === "Всі міста";
 
       if (!isAllCities && car.city !== selectedCity) return false;
 

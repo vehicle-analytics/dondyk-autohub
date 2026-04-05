@@ -26,6 +26,9 @@ class AnalyticsApp {
     this.partsForecast = new PartsPurchaseForecast();
     this.financialForecaster = new FinancialForecaster(CONSTANTS);
     
+    // Ключові слова для виключення робіт з розрахунку "Базових витрат" (щоб не рахувати їх двічі)
+    this.MAINTENANCE_KEYWORDS = /то|грм|помпа|ремінь|ролик|фільтр|масло|олива|колодки|диски|амортизатор|опора|шарова|тяга|накінечник|зчеплення|стартер|генератор|акумулятор|свічки/i;
+
     // Ініціалізація Web Worker для фонової обробки даних
     this.worker = new Worker('analyticsWorker.js', { type: 'module' });
     
@@ -92,7 +95,16 @@ class AnalyticsApp {
     this.updateLoadingProgress(10);
     this.setupEventListeners();
 
-    await this.waitForModules();
+    // Слухач повідомлень від Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'BACKGROUND_UPDATE_TRIGGERED') {
+          console.log("📥 Background update triggered from SW, refreshing analytics...");
+          this.loadData(true);
+        }
+      });
+    }
+
     await this.loadData();
   }
 
@@ -175,42 +187,57 @@ class AnalyticsApp {
       this.updateLoadingProgress(20);
 
       const cached = await this.getCachedData();
-      const needsDataRefresh = cached && cached.records && cached.records.length > 0 && !cached.records[0].isoDate;
+      const preBaked = window.preBakedData;
+      const initialData = cached || preBaked;
 
-      if (
-        cached &&
-        !forceRefresh &&
-        !needsDataRefresh &&
-        cached.carsInfo &&
-        Object.keys(cached.carsInfo).length > 0
-      ) {
-        console.log("✅ Використано кешовані дані (Миттєве завантаження)");
-        this.appData = cached;
-        this.maintenanceRegulations = cached.regulations || [];
-        this.updateLoadingProgress(60);
-      } else if (forceRefresh || !cached) {
-        if (needsDataRefresh) {
-          console.log("🔄 Кеш застарілий (відсутня isoDate). Примусове оновлення...");
-        } else if (!cached) {
-          console.log("📥 Кеш порожній. Перше завантаження з Google Sheets...");
-        } else {
-          console.log("📥 Завантаження даних з Google Sheets (Ручне оновлення)...");
+      // === МИТТЄВЕ ВІДОБРАЖЕННЯ (INSTANT VIEW) ===
+      if (initialData && !forceRefresh) {
+        this.appData = initialData;
+        this.maintenanceRegulations = initialData.regulations || [];
+        
+        // Якщо у нас є вже оброблені авто, показуємо все миттєво
+        if (initialData.processedCars && initialData.processedCars.length > 0) {
+          console.log("⚡ Instant View: Using cached processed data");
+          this.processedCars = initialData.processedCars;
+          this.updateLoadingProgress(80);
+          this.populateFilters();
+          this.applyFilters();
+          
+          // Ховаємо завантаження
+          const loadingScreen = document.getElementById("loading-screen");
+          if (loadingScreen) loadingScreen.classList.add("hidden");
+          const mainInterface = document.getElementById("main-interface");
+          if (mainInterface) mainInterface.classList.remove("hidden");
         }
-        this.updateLoadingProgress(40);
-        await this.fetchDataFromSheets();
       }
 
-      this.updateLoadingProgress(70);
-      await this.processCars();
+      // === ФОНОВЕ ОНОВЛЕННЯ АБО ПОВНЕ ЗАВАНТАЖЕННЯ ===
+      const needsDataRefresh = forceRefresh || !cached || (cached.records && cached.records.length > 0 && !cached.records[0].isoDate);
 
-      this.updateLoadingProgress(80);
-      this.populateFilters();
-      this.applyFilters();
+      if (needsDataRefresh) {
+        this.updateLoadingProgress(40);
+        await this.fetchDataFromSheets();
+        
+        this.updateLoadingProgress(70);
+        await this.processCars();
+
+        this.updateLoadingProgress(80);
+        this.populateFilters();
+        this.applyFilters();
+      } else if (!this.processedCars) {
+        // Якщо даних не було у processedCars кеші, але є appData (наприклад, з pre-baked)
+        await this.processCars();
+        this.populateFilters();
+        this.applyFilters();
+      }
 
       this.updateLoadingProgress(100);
-
-      document.getElementById("loading-screen").classList.add("hidden");
-      document.getElementById("main-interface").classList.remove("hidden");
+      
+      const loadingScreen = document.getElementById("loading-screen");
+      if (loadingScreen) loadingScreen.classList.add("hidden");
+      const mainInterface = document.getElementById("main-interface");
+      if (mainInterface) mainInterface.classList.remove("hidden");
+      
     } catch (error) {
       console.error("❌ Помилка завантаження даних:", error);
       this.showErrorMessage("Помилка завантаження даних: " + error.message);
@@ -304,13 +331,14 @@ class AnalyticsApp {
     photoAssessmentData,
   ) {
     try {
-      this.appData = await this.callWorker('PROCESS_RAW_DATA', {
+      const result = await this.callWorker('PROCESS_RAW_DATA', {
         scheduleData,
         historyData,
         regulationsData,
         photoAssessmentData
       });
-      this.maintenanceRegulations = this.appData.regulations || [];
+      this.appData = result.appData;
+      this.maintenanceRegulations = result.maintenanceRegulations || (this.appData ? this.appData.regulations : []) || [];
     } catch (error) {
       console.error("❌ Помилка обробки даних у Worker:", error);
       throw error;
@@ -332,20 +360,22 @@ class AnalyticsApp {
         ...newHistoryRows
       ];
 
-      const incrementalAppData = await this.callWorker('PROCESS_RAW_DATA', {
+      const result = await this.callWorker('PROCESS_RAW_DATA', {
         scheduleData,
         historyData: mockFullHistory,
         regulationsData,
         photoAssessmentData
       });
+      const incrementalData = result.appData;
 
-      if (this.appData) {
-        this.appData.records = [...prevRecords, ...incrementalAppData.records];
-        this.appData.currentMileages = { ...this.appData.currentMileages, ...incrementalAppData.currentMileages };
-        this.appData.regulations = incrementalAppData.regulations;
-        this.maintenanceRegulations = incrementalAppData.regulations || [];
+      if (this.appData && incrementalData) {
+        this.appData.records = [...prevRecords, ...(incrementalData.records || [])];
+        this.appData.currentMileages = { ...this.appData.currentMileages, ...incrementalData.currentMileages };
+        this.appData.regulations = incrementalData.regulations;
+        this.maintenanceRegulations = incrementalData.regulations || result.maintenanceRegulations || [];
       } else {
-        this.appData = incrementalAppData;
+        this.appData = incrementalData;
+        this.maintenanceRegulations = result.maintenanceRegulations || [];
       }
     } catch (error) {
       console.error("❌ Помилка інкрементальної обробки у Worker:", error);
@@ -360,6 +390,14 @@ class AnalyticsApp {
         appData: this.appData,
         maintenanceRegulations: this.maintenanceRegulations
       });
+      
+      // Кешуємо оброблені дані разом з основними під час фонового оновлення
+      if (this.appData) {
+        await this.cacheData({
+          ...this.appData,
+          processedCars: this.processedCars
+        });
+      }
     } catch (error) {
       console.error("❌ Помилка обробки авто у Worker:", error);
       throw error;
@@ -886,9 +924,6 @@ class AnalyticsApp {
                     <h3 class="text-sm font-semibold text-gray-600">Кількість авто</h3>
                 </div>
                 <div class="text-2xl font-bold text-gray-800 mb-1">${carCount}</div>
-                <div class="flex items-center gap-1 text-xs text-gray-500">
-                    <span>Активний флот</span>
-                </div>
             </div>
         `;
 
@@ -1114,12 +1149,8 @@ class AnalyticsApp {
         carsWithAge++;
       }
 
-      // Обчислюємо health score для кожного авто
-      const score = StatsCalculator.calculateHealthScore(
-        car, 
-        this.maintenanceRegulations, 
-        (l, m, y, p) => CarProcessor.findRegulationForCar(l, m, y, p, this.maintenanceRegulations)
-      );
+      // ОПТИМІЗАЦІЯ: Використовуємо вже розрахований healthScore від воркера
+      const score = car.healthScore || 0;
       sumHealthScore += score;
     });
 
@@ -1999,45 +2030,6 @@ class AnalyticsApp {
     };
   }
 
-  /**
-   * Розраховує базові метрики для прогнозу (історичне середнє та заплановані роботи)
-   */
-  _getForecastBaseMetrics() {
-    if (!this.appData || !this.processedCars) return null;
-
-    const config = this.FORECAST_CONFIG;
-    let records = this.appData.records || [];
-    let cars = this.processedCars || [];
-    
-    // Якщо вибрано конкретне авто, використовуємо тільки його записи та інфо
-    if (this.filters.vehicle !== "all") {
-      records = records.filter(r => r.car === this.filters.vehicle);
-      cars = cars.filter(c => c.license === this.filters.vehicle);
-    }
- 
-    // 1. Розрахунок середньомісячних витрат за алгоритмом з app.js (останній рік)
-    const avgMonthlyHistorical = this._getAvgMonthlyForCars(records);
- 
-    // 2. Отримання прогнозу запланованих робіт від PartsForecast
-    let forecastData = null;
-    try {
-      forecastData = this.partsForecast.calculateForecast(
-        cars,
-        this.maintenanceRegulations,
-        (license, model, year, partName) => CarProcessor.findRegulationForCar(license, model, year, partName, this.maintenanceRegulations),
-        config.MONTHS_AHEAD
-      );
-    } catch (e) {
-      console.warn("Помилка при розрахунку прогнозу робіт:", e);
-    }
-
-    return {
-      avgMonthlyHistorical,
-      forecastData,
-      config
-    };
-  }
-
   calculateExpenseForecast() {
     return this.renderForecastSummaryHtml();
   }
@@ -2090,28 +2082,20 @@ class AnalyticsApp {
     `;
   }
 
+  /**
+   * Розраховує прогнозні значення витрат для графіка (синхронізовано з FinancialForecaster)
+   */
   getForecastValues(count) {
-    const metrics = this._getForecastBaseMetrics();
-    if (!metrics) return [];
+    if (!this.appData || !this.filteredData || !this.filteredData.cars) return [];
+
+    const cars = this.filteredData.cars;
     
-    const { avgMonthlyHistorical, forecastData } = metrics;
-    const results = [];
-
-    for (let i = 0; i < count; i++) {
-        // Реалістичний алгоритм для графіка: базові + заплановані на кожен місяць
-        // Базові витрати — завжди присутні (середньомісячне)
-        const baseMonthly = avgMonthlyHistorical;
-        
-        // Заплановані роботи для конкретного місяця i
-        const monthMaintenance = (forecastData && forecastData.byMonth[i] ? forecastData.byMonth[i].totalCost : 0);
-        
-        // Загальний прогноз на місяць = база + регламентні роботи
-        const monthBudget = baseMonthly + monthMaintenance;
-        
-        results.push(monthBudget);
-    }
-
-    return results;
+    // Використовуємо уніфікований рушій FinancialForecaster для отримання помісячного прогнозу
+    return this.financialForecaster.calculateFleetMonthlyForecast(
+      cars, 
+      this.maintenanceRegulations, 
+      count
+    );
   }
 
   getForecastRemainderForCurrentMonth() {
@@ -2124,7 +2108,6 @@ class AnalyticsApp {
     const monthlyForecast = this.getForecastValues(1)[0] || 0;
     return monthlyForecast * factor;
   }
-
 
   getForecastYearlyValues(yearsCount) {
     const now = new Date();
@@ -2678,53 +2661,56 @@ class AnalyticsApp {
    * Допоміжний метод: середньомісячні витрати за останній рік
    * (ідентичний алгоритму у app.js для повної синхронізації)
    */
-  _getAvgMonthlyForCars(records) {
-    if (!records || records.length === 0) return 0;
+  calculateExpenseForecast() {
+    return this.renderForecastSummaryHtml();
+  }
 
-    const now = new Date();
-    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-    
-    let lastYearSpent = 0;
-    const byMonth = {};
+  renderForecastSummaryHtml() {
+    if (!this.appData || !this.filteredData || !this.filteredData.cars) return "Немає даних для прогнозу";
 
-    records.forEach(record => {
-      if (!record.totalWithVAT || record.totalWithVAT <= 0) return;
-      
-      let recordDate = null;
-      if (record.isoDate) {
-        recordDate = new Date(record.isoDate);
-      } else if (record.date) {
-        if (typeof record.date === 'string' && record.date.includes('.')) {
-          const parts = record.date.split('.');
-          if (parts.length === 3) {
-            recordDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-          }
-        } else {
-          recordDate = new Date(record.date);
-        }
-      }
-      
-      if (!recordDate || isNaN(recordDate.getTime())) return;
-      
-      // Групування по місяцях (використовуємо ISO для синхронізації з app.js)
-      try {
-        const monthKey = recordDate.toISOString().substring(0, 7);
-        byMonth[monthKey] = (byMonth[monthKey] || 0) + record.totalWithVAT;
-      } catch (e) {
-        const year = recordDate.getFullYear();
-        const month = String(recordDate.getMonth() + 1).padStart(2, '0');
-        const monthKey = `${year}-${month}`;
-        byMonth[monthKey] = (byMonth[monthKey] || 0) + record.totalWithVAT;
-      }
-      
-      // Сума за останній рік
-      if (recordDate >= oneYearAgo) {
-        lastYearSpent += record.totalWithVAT;
-      }
-    });
+    const cars = this.filteredData.cars;
 
-    const monthsCount = Object.keys(byMonth).length;
-    return monthsCount > 0 ? lastYearSpent / monthsCount : 0;
+    if (cars.length === 0) return "Нічого не знайдено для вибраних фільтрів";
+
+    // Отримуємо прогноз для всього парку (синхронізуємо зі Smart Budget AI)
+    const forecast = this.financialForecaster.calculateFleetForecast(cars, this.maintenanceRegulations);
+
+    return `
+        <div class="financial-forecast-dashboard p-4 bg-white rounded-xl border border-orange-100 shadow-sm mt-6">
+            <div class="flex flex-col md:flex-row items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg border border-orange-200 gap-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">💰</span>
+                    <div>
+                        <div class="text-sm font-semibold text-orange-800 uppercase tracking-wider">Прогноз на 6 міс:</div>
+                        <div class="text-3xl font-black text-orange-600">${this.formatCurrency(forecast.totalForecast)}</div>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center md:items-end gap-1">
+                    <div class="px-3 py-1 bg-white/50 rounded-full text-[10px] font-bold text-orange-700 border border-orange-200 uppercase">
+                        Загальний бюджет парку (${cars.length} авто)
+                    </div>
+                    <div class="text-[10px] text-orange-600 font-medium">
+                        Пробіг парку: ~${this.formatMileage(forecast.averageMonthlyMileage)} км/міс
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 px-2 flex flex-wrap gap-4 text-[10px] text-gray-500 font-medium uppercase tracking-tighter">
+                <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                    Базові витрати: ${this.formatCurrency(forecast.baseOperationalExpense)}
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                    Планове ТО: ${this.formatCurrency(forecast.scheduledMaintenanceExpense)}
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                    Рекомендовано: ${this.formatCurrency(forecast.predictiveWorkExpense)}
+                </div>
+            </div>
+        </div>
+    `;
   }
 
   // ========== UTILITY METHODS ==========

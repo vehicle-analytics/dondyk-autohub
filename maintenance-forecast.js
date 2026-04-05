@@ -2,6 +2,8 @@
  * ⏰ Модуль прогнозу наступного обслуговування
  * Розраховує приблизні терміни заміни запчастин
  */
+import { Formatters } from './utils/formatters.js';
+
 
 export class MaintenanceForecast {
   constructor() {
@@ -736,9 +738,7 @@ export class MaintenanceForecast {
             const remainingDays = regVal * 30 - (part.daysDiff || 0);
 
             if (part.date) {
-              const lastDateObj = window.Formatters
-                ? window.Formatters.parseDate(part.date)
-                : new Date(part.date);
+              const lastDateObj = Formatters.parseDate(part.date);
               if (lastDateObj && !isNaN(lastDateObj.getTime())) {
                 const date = new Date(lastDateObj);
                 date.setMonth(date.getMonth() + regVal);
@@ -881,9 +881,7 @@ export class MaintenanceForecast {
         // Спеціальна логіка для акумулятора
         let timeSinceInstallation = null;
         if (isBattery && part.date) {
-          const lastDateObj = window.Formatters
-            ? window.Formatters.parseDate(part.date)
-            : new Date(part.date);
+          const lastDateObj = Formatters.parseDate(part.date);
           if (lastDateObj && !isNaN(lastDateObj.getTime())) {
             const today = new Date();
             const daysDiff = Math.floor(
@@ -920,7 +918,7 @@ export class MaintenanceForecast {
             regulation && regulation.regulationValue
               ? regulation.periodType === "пробіг"
                 ? `Кожні ${formatMileage(regulation.regulationValue)}`
-                : `Кожні ${window.Formatters ? window.Formatters.formatNumber(regulation.regulationValue) : regulation.regulationValue} міс.`
+                : `Кожні ${Formatters.formatNumber(regulation.regulationValue)} міс.`
               : null,
           requiresDiagnostics: requiresDiagnostics,
           mileageDiff: part.mileageDiff || 0,

@@ -43,19 +43,40 @@ class CarAnalyticsApp {
       partsFilter: "all",
     };
 
-    this.focusInfo = null;
-    this.renderScheduled = false;
-    this.isTyping = false;
-
-    // Кеш для результатів пошуку
-    this.searchCache = new Map();
-    this.historySearchCache = new Map();
-
-    // Debounce таймери
-    this.searchDebounceTimer = null;
-    this.historySearchDebounceTimer = null;
-
     this.init();
+  }
+
+  /**
+   * Утиліта для взаємодії з воркером через Promises (аналогічно analytics.js)
+   */
+  callWorker(type, data) {
+    if (!this.worker) {
+      this.worker = new Worker('analyticsWorker.js', { type: 'module' });
+    }
+    
+    return new Promise((resolve, reject) => {
+      const handler = (e) => {
+        if (e.data.type === `${type}_SUCCESS`) {
+          this.worker.removeEventListener('message', handler);
+          this.worker.removeEventListener('error', errorHandler);
+          resolve(e.data.payload);
+        } else if (e.data.type === 'ERROR') {
+          this.worker.removeEventListener('message', handler);
+          this.worker.removeEventListener('error', errorHandler);
+          reject(new Error(e.data.payload));
+        }
+      };
+      
+      const errorHandler = (err) => {
+        this.worker.removeEventListener('message', handler);
+        this.worker.removeEventListener('error', errorHandler);
+        reject(err);
+      };
+      
+      this.worker.addEventListener('message', handler);
+      this.worker.addEventListener('error', errorHandler);
+      this.worker.postMessage({ type, data });
+    });
   }
 
   async init() {
@@ -63,7 +84,11 @@ class CarAnalyticsApp {
     this.setupEventListeners();
     this.updateLoadingProgress(20);
 
-    const cached = this.getCachedData();
+    // Ініціалізація Web Worker
+    this.worker = new Worker('analyticsWorker.js', { type: 'module' });
+
+    // ВАЖЛИВО: Очікуємо на кеш асинхронно для миттєвого відображення
+    const cached = await CacheManager.getCachedData();
     const preBaked = window.preBakedData;
 
     // Спроба миттєвого відображення з кешу або запечених даних
@@ -79,61 +104,16 @@ class CarAnalyticsApp {
       ) {
         this.processedCars = initialData.processedCars;
       }
-      requestAnimationFrame(() => {
-        this.render();
-        this.updateLoadingProgress(100);
-      });
+      
+      // Рендеримо миттєво
+      this.render();
+      this.updateLoadingProgress(100);
     }
 
+    // Фонове оновлення даних
     this.loadData().catch((error) => {
       console.error("Помилка оновлення даних:", error);
     });
-
-    if (
-      !cached ||
-      !cached.carsInfo ||
-      Object.keys(cached.carsInfo).length === 0
-    ) {
-      // Чекаємо на завантаження даних
-      this.loadData()
-        .then(() => {
-          this.updateLoadingProgress(100);
-          setTimeout(() => {
-            this.render();
-
-            // Прокручуємо до верху після рендерингу для повного відображення
-            setTimeout(() => {
-              window.scrollTo({ top: 0, behavior: "instant" });
-              requestAnimationFrame(() => {
-                const header = document.getElementById("main-page-header");
-                if (header) {
-                  header.scrollIntoView({
-                    behavior: "instant",
-                    block: "start",
-                  });
-                }
-              });
-            }, 100);
-          }, 100);
-        })
-        .catch((error) => {
-          console.error("❌ Помилка завантаження даних:", error);
-          this.updateLoadingProgress(100);
-          const loadingScreen = document.getElementById("loading-screen");
-          if (loadingScreen) {
-            loadingScreen.classList.add("hidden");
-          }
-          const mainInterface = document.getElementById("main-interface");
-          if (mainInterface) {
-            mainInterface.classList.remove("hidden");
-          }
-          this.showError(
-            `Помилка завантаження: ${error.message || "Невідома помилка"}`,
-          );
-        });
-    } else {
-      // Якщо був кеш, оновлюємо даних не потрібно тут нічого робити, обробляється в loadData/init
-    }
 
     this.startAutoRefresh();
   }
@@ -179,6 +159,23 @@ class CarAnalyticsApp {
 
   // === ПІДПИСКА НА ПОДІЇ ===
   setupEventListeners() {
+    // Реєстрація Periodic Sync через Service Worker (якщо підтримується)
+    if ("serviceWorker" in navigator && "periodicSync" in ServiceWorkerRegistration.prototype) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.active.postMessage({ type: "REGISTER_PERIODIC_SYNC" });
+      });
+    }
+
+    // Обслуговування повідомлень від Service Worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "BACKGROUND_UPDATE_TRIGGERED") {
+          console.log("📥 Background update triggered from SW, refreshing data...");
+          this.refreshData(false);
+        }
+      });
+    }
+
     document.getElementById("refresh-data")?.addEventListener("click", () => {
       this.refreshData(true);
     });
@@ -212,7 +209,7 @@ class CarAnalyticsApp {
 
   async loadData(forceRefresh = false) {
     try {
-      const cached = this.getCachedData();
+      const cached = await CacheManager.getCachedData();
       const preBaked = window.preBakedData;
       let hasData = false;
       let hasCache = false;
@@ -516,11 +513,7 @@ class CarAnalyticsApp {
 
     document.getElementById("main-interface").innerHTML = html;
 
-    // Ховаємо екран завантаження
-    const loadingScreen = document.getElementById("loading-screen");
-    if (loadingScreen) loadingScreen.classList.add("hidden");
-    const mainInterface = document.getElementById("main-interface");
-    if (mainInterface) mainInterface.classList.remove("hidden");
+    document.getElementById("main-interface").innerHTML = html;
   }
 
   renderCarList() {
@@ -555,40 +548,34 @@ class CarAnalyticsApp {
       return;
     }
 
-    // Якщо processedCars немає - обробляємо асинхронно
+    // Якщо processedCars немає - обробляємо асинхронно через Worker
     requestAnimationFrame(async () => {
       if (!this.processedCars) {
         this.updateLoadingProgress(60);
-        await new Promise((resolve) => {
-          setTimeout(() => {
-            this.processedCars = CarProcessor.processCarData(
-              this.appData,
-              (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
-                CarProcessor.getPartStatus(
-                  partName,
-                  mileageDiff,
-                  daysDiff,
-                  carYear,
-                  carModel,
-                  license,
-                  this.maintenanceRegulations,
-                  CarProcessor.findRegulationForCar,
-                ),
-              CarProcessor.findRegulationForCar,
-            );
-            try {
-              if (this.appData) {
-                this.cacheData({
-                  ...this.appData,
-                  processedCars: this.processedCars,
-                });
-              }
-            } catch (e) {
-              console.warn("⚠️ Не вдалося закешувати processedCars:", e);
-            }
-            resolve();
-          }, 0);
-        });
+        
+        try {
+          // Використовуємо Worker для важких обчислень
+          this.processedCars = await this.callWorker('PROCESS_CARS', {
+            appData: this.appData,
+            maintenanceRegulations: this.maintenanceRegulations
+          });
+
+          if (this.appData) {
+            await this.cacheData({
+              ...this.appData,
+              processedCars: this.processedCars,
+            });
+          }
+        } catch (e) {
+          console.error("❌ Worker error, falling back to main thread:", e);
+          // Fallback на головний потік, якщо Worker не спрацював
+          this.processedCars = CarProcessor.processCarData(
+            this.appData,
+            undefined,
+            undefined,
+            this.maintenanceRegulations
+          );
+        }
         this.updateLoadingProgress(80);
       }
 
@@ -633,6 +620,13 @@ class CarAnalyticsApp {
   setupEventHandlersAfterRender(mainInterface) {
     const appInstance = this;
     this.updateLoadingProgress(100);
+
+    // Застосовуємо фільтр пошуку після рендерингу (DOM-only)
+    if (this.state.searchTerm) {
+      requestAnimationFrame(() => {
+        this.handleSearchInput({ target: { value: this.state.searchTerm } });
+      });
+    }
     // Налаштовуємо закріплення фільтрів та заголовка таблиці
     this.initStickyFiltersAndTable();
 

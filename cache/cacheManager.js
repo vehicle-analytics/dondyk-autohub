@@ -1,112 +1,131 @@
 /**
- * Менеджер кешування даних
+ * Менеджер кешування даних через IndexedDB
  */
 
 export class CacheManager {
+  static DB_NAME = 'CarAnalyticsDB';
+  static STORE_NAME = 'analytics_cache';
+  static DB_VERSION = 1;
+
   /**
-   * Отримує кешовані дані
+   * Відкриває з'єднання з IndexedDB
    */
-  static getCachedData() {
+  static async openDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          db.createObjectStore(this.STORE_NAME);
+        }
+      };
+
+      request.onsuccess = (event) => resolve(event.target.result);
+      request.onerror = (event) => reject(event.target.error);
+    });
+  }
+
+  /**
+   * Отримує кешовані дані (тепер асинхронно)
+   */
+  static async getCachedData() {
     try {
-      const cached = localStorage.getItem("carAnalyticsData");
-      if (!cached) return null;
+      const db = await this.openDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], 'readonly');
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.get('carAnalyticsData');
 
-      const data = JSON.parse(cached);
-      const cacheTime = new Date(data.lastUpdated).getTime();
-      const currentTime = Date.now();
-      const maxAge = 24 * 60 * 60 * 1000; // 24 години
+        request.onsuccess = () => {
+          const data = request.result;
+          if (!data) {
+            resolve(null);
+            return;
+          }
 
-      if (currentTime - cacheTime > maxAge) {
-        console.log(
-          `⚠️ Кеш застарів (${Math.floor((currentTime - cacheTime) / 1000 / 60 / 60)} годин), але ми використовуємо його для миттєвого відображення (Stale-While-Revalidate)`,
-        );
-      }
+          const cacheTime = new Date(data.lastUpdated).getTime();
+          const currentTime = Date.now();
+          const maxAge = 24 * 60 * 60 * 1000; // 24 години
 
-      return data;
+          if (currentTime - cacheTime > maxAge) {
+            console.log(
+              `⚠️ Кеш застарів (${Math.floor((currentTime - cacheTime) / 1000 / 60 / 60)} годин), але ми використовуємо його для миттєвого відображення`,
+            );
+          }
+          resolve(data);
+        };
+
+        request.onerror = (event) => {
+          console.warn("⚠️ Помилка читання з IndexedDB:", event.target.error);
+          resolve(null);
+        };
+      });
     } catch (error) {
-      console.warn("⚠️ Помилка читання кешу:", error);
+      console.warn("⚠️ Помилка ініціалізації IndexedDB:", error);
       return null;
     }
   }
 
   /**
-   * Зберігає дані в кеш
+   * Зберігає дані в кеш (асинхронно)
    */
-  static cacheData(data) {
+  static async cacheData(data) {
     try {
-      const dataString = JSON.stringify(data);
-      localStorage.setItem("carAnalyticsData", dataString);
-      localStorage.setItem("carAnalyticsCacheTime", new Date().toISOString());
-      console.log("💾 Дані збережено в кеш");
+      const db = await this.openDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(this.STORE_NAME);
+        
+        // Додаємо мітку часу оновлення
+        data.lastUpdated = new Date().toISOString();
+        
+        const request = store.put(data, 'carAnalyticsData');
+
+        transaction.oncomplete = () => {
+          console.log("💾 Дані успішно збережено в IndexedDB");
+          localStorage.setItem("carAnalyticsCacheTime", data.lastUpdated);
+          resolve(true);
+        };
+
+        transaction.onerror = (event) => {
+          console.error("❌ Помилка запису в IndexedDB:", event.target.error);
+          reject(event.target.error);
+        };
+      });
     } catch (error) {
-      if (error.name === "QuotaExceededError") {
-        console.warn(
-          "⚠️ Перевищено квоту localStorage. Спробуємо зберегти стиснуті дані...",
-        );
-        try {
-          const compressedData = {
-            schedule: data.schedule,
-            regulations: data.regulations,
-            lastUpdate: data.lastUpdate,
-            history: [],
-          };
-          const compressedString = JSON.stringify(compressedData);
-          localStorage.setItem("carAnalyticsData", compressedString);
-          localStorage.setItem(
-            "carAnalyticsCacheTime",
-            new Date().toISOString(),
-          );
-          console.log("💾 Збережено стиснуті дані (без історії)");
-        } catch (compressedError) {
-          console.warn(
-            "⚠️ Не вдалося зберегти навіть стиснуті дані. Очищаємо старий кеш...",
-          );
-          try {
-            localStorage.removeItem("carAnalyticsData");
-            localStorage.removeItem("carAnalyticsCacheTime");
-            const minimalData = {
-              schedule: data.schedule,
-              regulations: data.regulations,
-              lastUpdate: data.lastUpdate,
-            };
-            localStorage.setItem(
-              "carAnalyticsData",
-              JSON.stringify(minimalData),
-            );
-            localStorage.setItem(
-              "carAnalyticsCacheTime",
-              new Date().toISOString(),
-            );
-            console.log("💾 Збережено мінімальні дані");
-          } catch (finalError) {
-            console.warn(
-              "⚠️ Неможливо зберегти дані в кеш. Продовжуємо без кешування.",
-            );
-          }
-        }
-      } else {
-        console.warn("⚠️ Помилка збереження кешу:", error);
-      }
+      console.error("❌ Критична помилка IndexedDB:", error);
+      return false;
     }
   }
 
   /**
    * Очищає кеш
    */
-  static clearCache() {
+  static async clearCache() {
     try {
-      localStorage.removeItem("carAnalyticsData");
-      localStorage.removeItem("carAnalyticsCacheTime");
-      console.log("🗑️ Кеш очищено");
-      return true;
+      const db = await this.openDB();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction([this.STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.clear();
+
+        transaction.oncomplete = () => {
+          console.log("🗑️ Кеш IndexedDB очищено");
+          localStorage.removeItem("carAnalyticsCacheTime");
+          resolve(true);
+        };
+
+        transaction.onerror = (event) => reject(event.target.error);
+      });
     } catch (error) {
-      console.error("❌ Помилка очищення кешу:", error);
+      console.error("❌ Помилка очищення IndexedDB:", error);
       return false;
     }
   }
 
   /**
-   * Оновлює інформацію про кеш
+   * Оновлює інформацію про кеш (залишаємо в localStorage для швидкої перевірки)
    */
   static updateCacheInfo() {
     try {
@@ -114,15 +133,15 @@ export class CacheManager {
       if (cacheTime) {
         const time = new Date(cacheTime);
         const now = new Date();
-        const diffHours = Math.floor((now - time) / (1000 * 60 * 60));
-        const diffMinutes =
-          Math.floor((now - time) / (1000 * 60 * 60 * 1000)) % 60;
+        const diffMs = now - time;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         console.log(
           `⏰ Кеш оновлено ${diffHours} годин ${diffMinutes} хвилин тому`,
         );
       }
     } catch (error) {
-      // Ігноруємо помилки
+      // Ігноруємо
     }
   }
 }

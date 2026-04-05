@@ -5,7 +5,12 @@ export class CarProcessor {
   /**
    * Обробляє дані автомобілів
    */
-  static processCarData(appData, getPartStatus, findRegulationForCar) {
+  static processCarData(
+    appData,
+    getPartStatus = CarProcessor.getPartStatus,
+    findRegulationForCar = CarProcessor.findRegulationForCar,
+    maintenanceRegulations = [],
+  ) {
     if (!appData) return [];
 
     const {
@@ -230,6 +235,8 @@ export class CarProcessor {
                 carYear,
                 carModel,
                 car.license,
+                maintenanceRegulations,
+                findRegulationForCar,
               ),
             };
           }
@@ -643,7 +650,7 @@ export class CarProcessor {
         return "good";
     }
 
-    return this.getPartStatusLegacy(
+    return CarProcessor.getPartStatusLegacy(
       partName,
       mileageDiff,
       daysDiff,

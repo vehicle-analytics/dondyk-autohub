@@ -1,4 +1,5 @@
 import { CONSTANTS } from '../config/appConfig.js';
+import { Formatters } from '../utils/formatters.js';
 
 export class DataProcessor {
   /**
@@ -9,9 +10,9 @@ export class DataProcessor {
     historyData,
     regulationsData,
     photoAssessmentData,
-    parseNumber,
-    parseDate,
-    formatDate,
+    parseNumber = Formatters.parseNumber,
+    parseDate = Formatters.parseDate,
+    formatDate = Formatters.formatDate,
   ) {
     // Processing data...
     // ...
@@ -20,7 +21,7 @@ export class DataProcessor {
       throw new Error("Немає даних для обробки");
     }
 
-    const maintenanceRegulations = this.processRegulations(
+    const maintenanceRegulations = DataProcessor.processRegulations(
       regulationsData,
       parseNumber,
     );
@@ -81,94 +82,77 @@ export class DataProcessor {
     const records = [];
     const currentMileages = {};
     const allowedCarsSet = new Set(allowedCars);
+    
+    // Cache constants to avoid lookup in loop
+    const COL_CAR = CONSTANTS.COL_CAR;
+    const COL_MILEAGE = CONSTANTS.COL_MILEAGE;
+    const COL_STATUS = CONSTANTS.COL_STATUS;
+    const COL_DATE_NEEDED = CONSTANTS.COL_DATE_NEEDED;
+    const COL_DATE = CONSTANTS.COL_DATE;
+    const COL_QUANTITY = CONSTANTS.COL_QUANTITY;
+    const COL_PRICE = CONSTANTS.COL_PRICE;
+    const COL_TOTAL_WITH_VAT = CONSTANTS.COL_TOTAL_WITH_VAT;
+    const COL_DESCRIPTION = CONSTANTS.COL_DESCRIPTION;
+    const COL_PART_CODE = CONSTANTS.COL_PART_CODE;
+    const COL_UNIT = CONSTANTS.COL_UNIT;
 
     for (let i = 1; i < historyData.length; i++) {
       const row = historyData[i];
-      if (row.length < 8) continue;
+      if (!row || row.length < 8) continue;
 
-      const car = String(row[CONSTANTS.COL_CAR] || "").trim();
-      if (!car) continue; // Only skip empty license plates
+      const car = String(row[COL_CAR] || "").trim();
+      if (!car) continue;
 
-      const mileageStr = String(row[CONSTANTS.COL_MILEAGE] || "").trim();
+      const mileageStr = String(row[COL_MILEAGE] || "").trim();
       let mileage = 0;
 
       if (mileageStr) {
+        // Optimized number cleaning
         const cleanStr = mileageStr.replace(/[\s,]/g, "");
-        mileage = parseFloat(cleanStr);
-        if (isNaN(mileage)) mileage = 0;
+        mileage = parseFloat(cleanStr) || 0;
       }
 
       // Перевірка статусу запиту
-      const requestStatus =
-        row.length > CONSTANTS.COL_STATUS
-          ? String(row[CONSTANTS.COL_STATUS] || "")
-            .trim()
-            .toLowerCase()
-          : "";
+      const statusRaw = row.length > COL_STATUS ? row[COL_STATUS] : "";
+      const requestStatus = statusRaw ? String(statusRaw).trim().toLowerCase() : "";
       const isRejected = requestStatus === "відмова";
 
       // Використовуємо дату зі стовпчика J (COL_DATE_NEEDED) якщо вона є, інакше з COL_DATE
-      let date =
-        row.length > CONSTANTS.COL_DATE_NEEDED && row[CONSTANTS.COL_DATE_NEEDED]
-          ? row[CONSTANTS.COL_DATE_NEEDED]
-          : row[CONSTANTS.COL_DATE];
+      const dateRaw = (row.length > COL_DATE_NEEDED && row[COL_DATE_NEEDED])
+        ? row[COL_DATE_NEEDED]
+        : row[COL_DATE];
       
+      let dateFormatted = "";
       let isoDate = "";
-      if (date) {
-        const originalDate = String(date).trim();
-        const dateObj = parseDate(originalDate);
-        
+      
+      if (dateRaw) {
+        const dateObj = parseDate(String(dateRaw).trim());
         if (dateObj && !isNaN(dateObj.getTime())) {
-          // Зберігаємо форматовану дату для відображення
-          const day = String(dateObj.getDate()).padStart(2, "0");
-          const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-          const year = dateObj.getFullYear();
-          date = `${day}.${month}.${year}`;
-          // Зберігаємо ISO дату для розрахунків
+          dateFormatted = formatDate(dateObj); // Use external utility
           isoDate = dateObj.toISOString();
-        } else {
-          // Якщо не вдалося розпарсити, залишаємо оригінал (хоча це навряд чи спрацює в аналітиці)
-          isoDate = "";
         }
       }
 
       const city = carCities[car] || "";
 
-      const quantity =
-        row.length > CONSTANTS.COL_QUANTITY
-          ? parseNumber(row[CONSTANTS.COL_QUANTITY])
-          : 0;
-      const price =
-        row.length > CONSTANTS.COL_PRICE
-          ? parseNumber(row[CONSTANTS.COL_PRICE])
-          : 0;
+      const quantity = row.length > COL_QUANTITY ? parseNumber(row[COL_QUANTITY]) : 0;
+      const price = row.length > COL_PRICE ? parseNumber(row[COL_PRICE]) : 0;
       
       // В сумі витрат НЕ враховувати заявки зі статусом "відмова"
-      let totalWithVAT =
-        row.length > CONSTANTS.COL_TOTAL_WITH_VAT
-          ? parseNumber(row[CONSTANTS.COL_TOTAL_WITH_VAT])
-          : 0;
-      
-      if (isRejected) {
-        totalWithVAT = 0;
+      let totalWithVAT = 0;
+      if (!isRejected) {
+        totalWithVAT = row.length > COL_TOTAL_WITH_VAT ? parseNumber(row[COL_TOTAL_WITH_VAT]) : 0;
       }
 
       records.push({
-        date: date || "",
+        date: dateFormatted,
         isoDate: isoDate,
         city: city,
         car: car,
         mileage: mileage,
-        originalMileage: mileageStr,
-        description: String(row[CONSTANTS.COL_DESCRIPTION] || ""),
-        partCode:
-          row.length > CONSTANTS.COL_PART_CODE
-            ? String(row[CONSTANTS.COL_PART_CODE] || "").trim()
-            : "",
-        unit:
-          row.length > CONSTANTS.COL_UNIT
-            ? String(row[CONSTANTS.COL_UNIT] || "").trim()
-            : "",
+        description: row[COL_DESCRIPTION] ? String(row[COL_DESCRIPTION]) : "",
+        partCode: row.length > COL_PART_CODE ? String(row[COL_PART_CODE] || "").trim() : "",
+        unit: row.length > COL_UNIT ? String(row[COL_UNIT] || "").trim() : "",
         quantity: quantity,
         price: price,
         totalWithVAT: totalWithVAT,
@@ -176,8 +160,11 @@ export class DataProcessor {
       });
 
       // Оновлюємо пробіг тільки для записів без статусу "відмова" та з валідним пробігом
-      if (!isRejected && mileage > 0 && mileage > (currentMileages[car] || 0)) {
-        currentMileages[car] = mileage;
+      if (!isRejected && mileage > 0) {
+        const current = currentMileages[car] || 0;
+        if (mileage > current) {
+          currentMileages[car] = mileage;
+        }
       }
     }
 
@@ -229,7 +216,7 @@ export class DataProcessor {
   /**
    * Обробляє регламенти обслуговування
    */
-  static processRegulations(regulationsData, parseNumber) {
+  static processRegulations(regulationsData, parseNumber = Formatters.parseNumber) {
     if (!regulationsData || regulationsData.length <= 1) {
       // Regulations not found, using default rules
       return [];

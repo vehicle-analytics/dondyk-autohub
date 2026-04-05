@@ -96,5 +96,11 @@ export const CONSTANTS = {
         'Акумулятор 🔋': 'Акумулятор',
         'Свічки запалювання 🔥': 'Свічки запалювання'
     },
-    PARTS_CONFIG: PARTS_CONFIG
+    PARTS_CONFIG: PARTS_CONFIG,
+    FORECAST_SETTINGS: {
+        HISTORICAL_DEPTH_MONTHS: 12,
+        DEFAULT_RESERVE_COEFFICIENT: 0.15,
+        INFLATION_MULTIPLIER: 1.10, // 10% increase
+        WORK_COST_COEFFICIENT: 0.25,
+    }
 };

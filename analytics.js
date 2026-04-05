@@ -5,6 +5,9 @@ import { CarProcessor } from './processing/carProcessor.js';
 import { StatsCalculator } from './analytics/statsCalculator.js';
 import { CONFIG, CONSTANTS } from './config/appConfig.js';
 import { EXPENSE_CATEGORIES_UTILS, EXPENSE_CATEGORIES } from './expense-categories.js';
+import { PartsPurchaseForecast } from './parts-purchase-forecast.js';
+import { FinancialForecaster } from './processing/financialForecaster.js';
+
 
 class AnalyticsApp {
   constructor() {
@@ -20,7 +23,68 @@ class AnalyticsApp {
       selectedYear: null,
     };
     this.filteredData = null;
+    this.partsForecast = new PartsPurchaseForecast();
+    this.financialForecaster = new FinancialForecaster(CONSTANTS);
+    
+    // Ініціалізація Web Worker для фонової обробки даних
+    this.worker = new Worker('analyticsWorker.js', { type: 'module' });
+    
+    // Створюємо дебаунс-версію applyFilters для уникнення надмірного навантаження
+    this.debouncedApplyFilters = this.debounce(() => this.applyFilters(), 300);
+    
     this.init();
+  }
+
+  /**
+   * Утиліта для взаємодії з воркером через Promises
+   */
+  callWorker(type, data) {
+    this.toggleProcessingOverlay(true);
+    return new Promise((resolve, reject) => {
+      const handler = (e) => {
+        if (e.data.type === `${type}_SUCCESS`) {
+          this.worker.removeEventListener('message', handler);
+          this.worker.removeEventListener('error', errorHandler);
+          this.toggleProcessingOverlay(false);
+          resolve(e.data.payload);
+        } else if (e.data.type === 'ERROR') {
+          this.worker.removeEventListener('message', handler);
+          this.worker.removeEventListener('error', errorHandler);
+          this.toggleProcessingOverlay(false);
+          reject(new Error(e.data.payload));
+        }
+      };
+      
+      const errorHandler = (err) => {
+        this.worker.removeEventListener('message', handler);
+        this.worker.removeEventListener('error', errorHandler);
+        this.toggleProcessingOverlay(false);
+        reject(err);
+      };
+      
+      this.worker.addEventListener('message', handler);
+      this.worker.addEventListener('error', errorHandler);
+      this.worker.postMessage({ type, data });
+    });
+  }
+
+  toggleProcessingOverlay(show) {
+    const overlay = document.getElementById('processing-overlay');
+    if (!overlay) return;
+    
+    if (show) {
+      overlay.classList.remove('hidden');
+    } else {
+      overlay.classList.add('hidden');
+    }
+  }
+
+  debounce(func, wait) {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
   }
 
   async init() {
@@ -48,10 +112,7 @@ class AnalyticsApp {
         e.target.classList.remove("bg-gray-100", "text-gray-700");
         e.target.classList.add("bg-blue-100", "text-blue-700");
         this.filters.period = e.target.dataset.period;
-
-        // Кнопка "Рік" працює як інші періоди - показує дані за останній рік
-        // Фільтр "Рік:" завжди видимий і працює незалежно
-        this.applyFilters();
+        this.debouncedApplyFilters();
       });
     });
 
@@ -64,13 +125,13 @@ class AnalyticsApp {
           ? parseInt(e.target.value)
           : null;
       }
-      this.applyFilters();
+      this.debouncedApplyFilters();
     });
 
     // City filter
     document.getElementById("filter-city")?.addEventListener("change", (e) => {
       this.filters.city = e.target.value;
-      this.applyFilters();
+      this.debouncedApplyFilters();
     });
 
     // Vehicle filter
@@ -78,13 +139,13 @@ class AnalyticsApp {
       .getElementById("filter-vehicle")
       ?.addEventListener("change", (e) => {
         this.filters.vehicle = e.target.value;
-        this.applyFilters();
+        this.debouncedApplyFilters();
       });
 
     // Brand filter
     document.getElementById("filter-brand")?.addEventListener("change", (e) => {
       this.filters.brand = e.target.value;
-      this.applyFilters();
+      this.debouncedApplyFilters();
     });
 
     // Refresh button
@@ -113,7 +174,7 @@ class AnalyticsApp {
     try {
       this.updateLoadingProgress(20);
 
-      const cached = this.getCachedData();
+      const cached = await this.getCachedData();
       const needsDataRefresh = cached && cached.records && cached.records.length > 0 && !cached.records[0].isoDate;
 
       if (
@@ -123,15 +184,17 @@ class AnalyticsApp {
         cached.carsInfo &&
         Object.keys(cached.carsInfo).length > 0
       ) {
-        console.log("✅ Використано кешовані дані");
+        console.log("✅ Використано кешовані дані (Миттєве завантаження)");
         this.appData = cached;
         this.maintenanceRegulations = cached.regulations || [];
         this.updateLoadingProgress(60);
-      } else {
+      } else if (forceRefresh || !cached) {
         if (needsDataRefresh) {
           console.log("🔄 Кеш застарілий (відсутня isoDate). Примусове оновлення...");
+        } else if (!cached) {
+          console.log("📥 Кеш порожній. Перше завантаження з Google Sheets...");
         } else {
-          console.log("📥 Завантаження даних з Google Sheets...");
+          console.log("📥 Завантаження даних з Google Sheets (Ручне оновлення)...");
         }
         this.updateLoadingProgress(40);
         await this.fetchDataFromSheets();
@@ -154,28 +217,56 @@ class AnalyticsApp {
     }
   }
 
-  getCachedData() {
-    return CacheManager.getCachedData();
+  async getCachedData() {
+    return await CacheManager.getCachedData();
   }
 
   async fetchDataFromSheets() {
     const config = CONFIG;
     const { SPREADSHEET_ID, SHEETS, API_KEY } = config;
 
-    const [scheduleData, historyData, regulationsData, photoAssessmentData] =
+    // Оновлюємо тільки історію (HISTORY) інкрементально
+    // ГРАФІК ОБСЛУГОВУВАННЯ, Регламент ТО та Оцінка авто фото - зазвичай невеликі, купуємо їх повністю
+    const [scheduleData, regulationsData, photoAssessmentData] =
       await Promise.all([
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.SCHEDULE, API_KEY),
-        this.fetchSheetData(SPREADSHEET_ID, SHEETS.HISTORY, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.REGULATIONS, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.PHOTO_ASSESSMENT, API_KEY),
       ]);
 
-    this.processData(
-      scheduleData,
-      historyData,
-      regulationsData,
-      photoAssessmentData,
+    // Інкрементальне завантаження історії
+    let startRow = 1;
+    if (this.appData && this.appData.records && this.appData.records.length > 100) {
+      // Якщо у нас вже є дані, завантажуємо тільки нові рядки
+      // +1 для заголовка, +1 для наступного рядка
+      startRow = this.appData.records.length + 2; 
+    }
+
+    const historyDataResponse = await this.fetchSheetData(
+      SPREADSHEET_ID, 
+      SHEETS.HISTORY, 
+      API_KEY, 
+      startRow > 1 ? `A${startRow}:Z` : null
     );
+
+    let finalHistoryData = [];
+    if (startRow > 1) {
+      console.log(`📡 Інкрементальне завантаження історії (з рядка ${startRow})...`);
+      await this.processIncrementalDataWorker(
+        scheduleData,
+        historyDataResponse,
+        regulationsData,
+        photoAssessmentData,
+      );
+    } else {
+      console.log("📥 Повне завантаження історії (перший раз)...");
+      await this.processDataWorker(
+        scheduleData,
+        historyDataResponse,
+        regulationsData,
+        photoAssessmentData,
+      );
+    }
 
     if (
       !this.appData ||
@@ -187,12 +278,13 @@ class AnalyticsApp {
       );
     }
 
-    this.cacheData(this.appData);
+    await this.cacheData(this.appData);
   }
 
-  async fetchSheetData(spreadsheetId, sheetName, apiKey) {
+  async fetchSheetData(spreadsheetId, sheetName, apiKey, range = null) {
     try {
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${apiKey}&t=${Date.now()}`;
+      const rangeParam = range ? `!${range}` : "";
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}${rangeParam}?key=${apiKey}&t=${Date.now()}`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -205,75 +297,77 @@ class AnalyticsApp {
     }
   }
 
-  processData(scheduleData, historyData, regulationsData, photoAssessmentData) {
-    const result = DataProcessor.processData(
-      scheduleData,
-      historyData,
-      regulationsData,
-      photoAssessmentData,
-      (value) => Formatters.parseNumber(value),
-      (dateString) => Formatters.parseDate(dateString),
-      (dateString) => Formatters.formatDate(dateString),
-    );
-
-    this.appData = result.appData;
-    this.maintenanceRegulations = result.maintenanceRegulations;
+  async processDataWorker(
+    scheduleData,
+    historyData,
+    regulationsData,
+    photoAssessmentData,
+  ) {
+    try {
+      this.appData = await this.callWorker('PROCESS_RAW_DATA', {
+        scheduleData,
+        historyData,
+        regulationsData,
+        photoAssessmentData
+      });
+      this.maintenanceRegulations = this.appData.regulations || [];
+    } catch (error) {
+      console.error("❌ Помилка обробки даних у Worker:", error);
+      throw error;
+    }
   }
 
-  cacheData(data) {
-    CacheManager.cacheData(data);
+  async processIncrementalDataWorker(
+    scheduleData,
+    newHistoryRows,
+    regulationsData,
+    photoAssessmentData,
+  ) {
+    try {
+      if (!newHistoryRows || newHistoryRows.length === 0) return;
+
+      const prevRecords = this.appData ? (this.appData.records || []) : [];
+      const mockFullHistory = [
+        ["Дата", "Авто", "Опис", "Сума", "Пробіг", "Статус"], 
+        ...newHistoryRows
+      ];
+
+      const incrementalAppData = await this.callWorker('PROCESS_RAW_DATA', {
+        scheduleData,
+        historyData: mockFullHistory,
+        regulationsData,
+        photoAssessmentData
+      });
+
+      if (this.appData) {
+        this.appData.records = [...prevRecords, ...incrementalAppData.records];
+        this.appData.currentMileages = { ...this.appData.currentMileages, ...incrementalAppData.currentMileages };
+        this.appData.regulations = incrementalAppData.regulations;
+        this.maintenanceRegulations = incrementalAppData.regulations || [];
+      } else {
+        this.appData = incrementalAppData;
+      }
+    } catch (error) {
+      console.error("❌ Помилка інкрементальної обробки у Worker:", error);
+      throw error;
+    }
   }
 
   async processCars() {
-    if (!this.appData) {
-      this.processedCars = [];
-      return;
+    if (!this.appData) return;
+    try {
+      this.processedCars = await this.callWorker('PROCESS_CARS', {
+        appData: this.appData,
+        maintenanceRegulations: this.maintenanceRegulations
+      });
+    } catch (error) {
+      console.error("❌ Помилка обробки авто у Worker:", error);
+      throw error;
     }
-
-    this.processedCars = CarProcessor.processCarData(
-      this.appData,
-      (partName, mileageDiff, daysDiff, carYear, carModel, license) =>
-        this.getPartStatus(
-          partName,
-          mileageDiff,
-          daysDiff,
-          carYear,
-          carModel,
-          license,
-        ),
-      (license, model, year, partName) =>
-        this.findRegulationForCar(license, model, year, partName),
-    );
   }
-
-  findRegulationForCar(license, model, year, partName) {
-    return CarProcessor.findRegulationForCar(
-      license,
-      model,
-      year,
-      partName,
-      this.maintenanceRegulations,
-    );
-  }
-
-  getPartStatus(partName, mileageDiff, daysDiff, carYear, carModel, license) {
-    return CarProcessor.getPartStatus(
-      partName,
-      mileageDiff,
-      daysDiff,
-      carYear,
-      carModel,
-      license,
-      this.maintenanceRegulations,
-      (license, model, year, partName, maintenanceRegulations) =>
-        CarProcessor.findRegulationForCar(
-          license,
-          model,
-          year,
-          partName,
-          maintenanceRegulations,
-        ),
-    );
+  async cacheData(data) {
+    if (!data) return;
+    await CacheManager.cacheData(data);
   }
 
   populateFilters() {
@@ -553,12 +647,12 @@ class AnalyticsApp {
   renderAll() {
     this.renderMetrics();
     this.renderExpenses();
-    this.renderMileage();
+    // this.renderMileage();
     this.renderRatings();
-    this.renderBreakdown();
+    // this.renderBreakdown();
     this.renderRequests();
-    this.renderForecast();
   }
+
 
   // ========== METRICS DASHBOARD ==========
   renderMetrics() {
@@ -591,17 +685,16 @@ class AnalyticsApp {
 
     if (isAveragePeriodAllYears) {
       // Для "Всі роки" і періодів День/Тиждень/Місяць/Квартал/Півроку:
-      // ВSUMMARY CARDS ми показуємо ЗАГАЛЬНУ СУМУ за весь час (records вже відфільтровані applyFilters)
-      // А для трендів/графіків за потреби можна використовувати середні.
+      // В SUMMARY CARDS ми показуємо СЕРЕДНЄ за вибраний період за весь час
       
-      // Сума з ПДВ (без відмов вже враховано в DataProcessor при заповненні totalWithVAT)
-      totalExpenses = records.reduce((sum, r) => sum + (r.totalWithVAT || 0), 0);
+      // Витрати - СЕРЕДНЄ за період за весь час
+      totalExpenses = this.calculateAverageByPeriod(records, this.filters.period, "expenses");
       
-      // Кількість заявок (всі записи, включаючи відмови - як просив юзер)
-      requestCount = records.length;
+      // Кількість заявок - СЕРЕДНЄ за період за весь час
+      requestCount = this.calculateAverageByPeriod(records, this.filters.period, "count");
       
-      // Ремонти - унікальні події ремонту за весь час
-      repairCount = this.countUniqueRepairs(records);
+      // Ремонти - СЕРЕДНЄ за період за весь час (унікальні ремонти)
+      repairCount = this.calculateAverageByPeriodUniqueRepairs(records, this.filters.period);
       
       // Пробіг - розраховуємо через FleetStats (включає selectedYear)
       const fleetStats = this.calculateFleetMileageStats(this.filteredData.cars, this.filters.selectedYear);
@@ -616,10 +709,11 @@ class AnalyticsApp {
       else avgMileage = fleetStats.monthly;
 
       // Виводимо лог для перевірки
-      console.log(`📊 Analytics Dashboard Stats:
-        Records: ${requestCount}
-        Total Exp: ${totalExpenses.toFixed(2)}
-        Repair Count: ${repairCount}
+      console.log(`📊 Analytics Dashboard Stats (All Years Avg):
+        Records: ${records.length}
+        Avg Exp: ${totalExpenses.toFixed(2)}
+        Avg Req: ${requestCount.toFixed(2)}
+        Avg Repair: ${repairCount.toFixed(2)}
         Avg Mileage: ${avgMileage}
       `);
 
@@ -646,7 +740,7 @@ class AnalyticsApp {
         this.filters.period,
         selectedYear,
       );
-      repairCount = Math.round(avgRepairs);
+      repairCount = avgRepairs;
 
       // Заявки - СЕРЕДНЄ за період (звичайно, кожен запис = одна заявка)
       const avgRequests = this.calculateAverageByPeriodForYear(
@@ -655,7 +749,7 @@ class AnalyticsApp {
         "count",
         selectedYear,
       );
-      requestCount = Math.round(avgRequests);
+      requestCount = avgRequests;
 
       // Пробіг - розраховуємо через FleetStats (включає selectedYear)
       const fleetStats = this.calculateFleetMileageStats(this.filteredData.cars, this.filters.selectedYear);
@@ -761,7 +855,7 @@ class AnalyticsApp {
                     <span class="text-xl">🔧</span>
                     <h3 class="text-sm font-semibold text-gray-600">Ремонтів</h3>
                 </div>
-                <div class="text-2xl font-bold text-gray-800 mb-1">${repairCount}</div>
+                <div class="text-2xl font-bold text-gray-800 mb-1">${(isAveragePeriodAllYears || isAveragePeriodSelectedYear) && typeof repairCount === 'number' ? Math.round(repairCount) : repairCount}</div>
                 <div class="flex items-center gap-1 text-xs ${repairTrend >= 0 ? "text-red-600" : "text-green-600"}">
                     <span>${repairTrend >= 0 ? "↑" : "↓"} ${Math.abs(repairTrend)}% vs мин.</span>
                 </div>
@@ -781,7 +875,7 @@ class AnalyticsApp {
                     <span class="text-xl">📋</span>
                     <h3 class="text-sm font-semibold text-gray-600">Заявок</h3>
                 </div>
-                <div class="text-2xl font-bold text-gray-800 mb-1">${requestCount}</div>
+                <div class="text-2xl font-bold text-gray-800 mb-1">${(isAveragePeriodAllYears || isAveragePeriodSelectedYear) && typeof requestCount === 'number' ? Math.round(requestCount) : requestCount}</div>
                 <div class="flex items-center gap-1 text-xs ${requestTrend >= 0 ? "text-red-600" : "text-green-600"}">
                     <span>${requestTrend >= 0 ? "↑" : "↓"} ${Math.abs(requestTrend)}% vs мин.</span>
                 </div>
@@ -827,25 +921,34 @@ class AnalyticsApp {
 
   // --- НОВІ ФУНКЦІЇ ДЛЯ ПРОБІГУ ---
 
-  countWorkingDays(startDate, endDate) {
+  /**
+   * Рахує кількість робочих днів (Пн-Пт) між датами
+   */
+  getWorkingDaysCount(startDate, endDate) {
     if (!startDate || !endDate) return 0;
+    
+    const now = new Date();
+    const start = new Date(startDate);
+    // Обмежуємо кінцеву дату сьогоднішнім днем, якщо вона у майбутньому
+    const end = (endDate > now) ? now : new Date(endDate);
+    
+    if (start > end) return 1;
 
     let workingDays = 0;
-    const currentDate = new Date(startDate);
-    currentDate.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(0, 0, 0, 0);
+    const current = new Date(start);
+    current.setHours(0, 0, 0, 0);
+    const endMidnight = new Date(end);
+    endMidnight.setHours(0, 0, 0, 0);
 
-    while (currentDate <= end) {
-      const dayOfWeek = currentDate.getDay(); // 0 = неділя, 1 = понеділок, ..., 6 = субота
-      // Враховуємо тільки дні з понеділка (1) по суботу (6)
-      if (dayOfWeek >= 1 && dayOfWeek <= 6) {
+    while (current <= endMidnight) {
+      const dayOfWeek = current.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         workingDays++;
       }
-      currentDate.setDate(currentDate.getDate() + 1);
+      current.setDate(current.getDate() + 1);
     }
 
-    return workingDays;
+    return workingDays || 1;
   }
 
   getAverageMonthlyMileage(car, selectedYear) {
@@ -875,14 +978,14 @@ class AnalyticsApp {
 
       if (!firstDate || !lastDate) return 0;
 
-      const workingDays = this.countWorkingDays(firstDate, lastDate);
+      const workingDays = this.getWorkingDaysCount(firstDate, lastDate);
       if (workingDays <= 0) return 0;
 
       const mileageDiff = lastRecord.mileage - firstRecord.mileage;
       if (mileageDiff <= 0) return 0;
 
       const avgMileagePerWorkingDay = mileageDiff / workingDays;
-      return avgMileagePerWorkingDay * 26; // ~26 робочих днів на місяць
+      return avgMileagePerWorkingDay * 22; // ~22 робочих дні на місяць (Пн-Пт)
     }
 
     // Для поточного року або коли рік не вибрано, використовуємо 5.5 місяців
@@ -916,14 +1019,14 @@ class AnalyticsApp {
 
       if (!firstDate || !lastDate) return 1000;
 
-      const workingDays = this.countWorkingDays(firstDate, lastDate);
+      const workingDays = this.getWorkingDaysCount(firstDate, lastDate);
       if (workingDays <= 0) return 1000;
 
       const mileageDiff = lastRecord.mileage - firstRecord.mileage;
       if (mileageDiff <= 0) return 1000;
 
       const avgMileagePerWorkingDay = mileageDiff / workingDays;
-      return avgMileagePerWorkingDay * 26;
+      return avgMileagePerWorkingDay * 22;
     }
 
     // Сортуємо записи за датою
@@ -941,14 +1044,14 @@ class AnalyticsApp {
 
     if (!firstDate || !endDate) return 1000;
 
-    const workingDays = this.countWorkingDays(firstDate, endDate);
+    const workingDays = this.getWorkingDaysCount(firstDate, endDate);
     if (workingDays <= 0) return 1000;
 
     const mileageDiff = lastRecord.mileage - firstRecord.mileage;
     if (mileageDiff <= 0) return 1000;
 
     const avgMileagePerWorkingDay = mileageDiff / workingDays;
-    return avgMileagePerWorkingDay * 26;
+    return avgMileagePerWorkingDay * 22;
   }
 
   calculateCarAgeMonths(car) {
@@ -1001,7 +1104,7 @@ class AnalyticsApp {
     cars.forEach(car => {
       const monthly = this.getAverageMonthlyMileage(car, selectedYear);
       sumMonthly += monthly;
-      sumDaily += (monthly / 26);
+      sumDaily += (monthly / 22);
       sumYearly += (monthly * 12);
       sumTotal += (car.currentMileage || 0);
 
@@ -1065,147 +1168,38 @@ class AnalyticsApp {
   calculateAverageByPeriodUniqueRepairs(allRecords, period) {
     if (!allRecords || allRecords.length === 0) return 0;
 
-    // Отримуємо всі унікальні роки
-    const years = new Set();
-    allRecords.forEach((r) => {
-      if (r.isoDate) {
-        const date = new Date(r.isoDate);
-        if (!isNaN(date.getTime())) {
-          years.add(date.getFullYear());
-        }
-      }
-    });
+    const totalUniqueRepairs = this.countUniqueRepairs(allRecords);
+    
+    // Вираховуємо загальну тривалість періоду в системі
+    const dates = allRecords
+      .map(r => r.isoDate ? new Date(r.isoDate).getTime() : null)
+      .filter(t => t !== null && !isNaN(t));
+    if (dates.length < 1) return 0;
+    
+    const start = new Date(Math.min(...dates));
+    const end = new Date(); // Завжди обчислюємо середнє відносно "сьогодні"
 
-    if (years.size === 0) return 0;
+    if (period === "day") {
+      const workingDays = this.getWorkingDaysCount(start, end);
+      return totalUniqueRepairs / workingDays;
+    } else if (period === "week") {
+      const workingDays = this.getWorkingDaysCount(start, end);
+      const weeks = workingDays / 5;
+      return totalUniqueRepairs / (weeks || 1);
+    } else if (period === "month") {
+      const months = (end.getFullYear() * 12 + end.getMonth()) - (start.getFullYear() * 12 + start.getMonth()) + 1;
+      return totalUniqueRepairs / (months || 1);
+    } else if (period === "quarter") {
+      const months = (end.getFullYear() * 12 + end.getMonth()) - (start.getFullYear() * 12 + start.getMonth()) + 1;
+      const quarters = months / 3;
+      return totalUniqueRepairs / (quarters || 1);
+    } else if (period === "halfyear") {
+      const months = (end.getFullYear() * 12 + end.getMonth()) - (start.getFullYear() * 12 + start.getMonth()) + 1;
+      const halfyears = months / 6;
+      return totalUniqueRepairs / (halfyears || 1);
+    }
 
-    const yearValues = [];
-
-    // Для кожного року обчислюємо кількість унікальних ремонтів за відповідний період
-    years.forEach((year) => {
-      const yearRecords = allRecords.filter((r) => {
-        if (!r.isoDate) return false;
-        const recordDate = new Date(r.isoDate);
-        return recordDate.getFullYear() === year;
-      });
-
-      let value = 0;
-
-      if (period === "day") {
-        // Групуємо записи по днях і рахуємо унікальні ремонти за день
-        const dailyRepairs = {};
-        yearRecords.forEach((r) => {
-          if (!r.isoDate || !r.car) return;
-          const recordDate = new Date(r.isoDate);
-          const dayKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-          if (!dailyRepairs[dayKey]) {
-            dailyRepairs[dayKey] = new Set();
-          }
-          dailyRepairs[dayKey].add(`${dayKey}_${r.car}`);
-        });
-        const dayCounts = Object.values(dailyRepairs).map(
-          (daySet) => daySet.size,
-        );
-        value =
-          dayCounts.length > 0
-            ? dayCounts.reduce((sum, count) => sum + count, 0) /
-            dayCounts.length
-            : 0;
-      } else if (period === "week") {
-        // Групуємо записи по тижнях і рахуємо унікальні ремонти за тиждень
-        const weeklyRepairs = {};
-        yearRecords.forEach((r) => {
-          if (!r.isoDate || !r.car) return;
-          const recordDate = new Date(r.isoDate);
-          const weekNumber = this.getWeekNumber(recordDate);
-          const weekKey = `${year}-W${String(weekNumber).padStart(2, "0")}`;
-          if (!weeklyRepairs[weekKey]) {
-            weeklyRepairs[weekKey] = new Set();
-          }
-          const dateKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-          weeklyRepairs[weekKey].add(`${dateKey}_${r.car}`);
-        });
-        const weekCounts = Object.values(weeklyRepairs).map(
-          (weekSet) => weekSet.size,
-        );
-        value =
-          weekCounts.length > 0
-            ? weekCounts.reduce((sum, count) => sum + count, 0) /
-            weekCounts.length
-            : 0;
-      } else if (period === "month") {
-        // Групуємо записи по місяцях і рахуємо унікальні ремонти за місяць
-        const monthlyRepairs = {};
-        yearRecords.forEach((r) => {
-          if (!r.isoDate || !r.car) return;
-          const recordDate = new Date(r.isoDate);
-          const monthKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}`;
-          if (!monthlyRepairs[monthKey]) {
-            monthlyRepairs[monthKey] = new Set();
-          }
-          const dateKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-          monthlyRepairs[monthKey].add(`${dateKey}_${r.car}`);
-        });
-        const monthCounts = Object.values(monthlyRepairs).map(
-          (monthSet) => monthSet.size,
-        );
-        value =
-          monthCounts.length > 0
-            ? monthCounts.reduce((sum, count) => sum + count, 0) /
-            monthCounts.length
-            : 0;
-      } else if (period === "quarter") {
-        // Групуємо записи по кварталах і рахуємо унікальні ремонти за квартал
-        const quarterlyRepairs = {};
-        yearRecords.forEach((r) => {
-          if (!r.isoDate || !r.car) return;
-          const recordDate = new Date(r.isoDate);
-          const quarter = Math.floor(recordDate.getMonth() / 3) + 1;
-          const quarterKey = `${year}-Q${quarter}`;
-          if (!quarterlyRepairs[quarterKey]) {
-            quarterlyRepairs[quarterKey] = new Set();
-          }
-          const dateKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-          quarterlyRepairs[quarterKey].add(`${dateKey}_${r.car}`);
-        });
-        const quarterCounts = Object.values(quarterlyRepairs).map(
-          (quarterSet) => quarterSet.size,
-        );
-        value =
-          quarterCounts.length > 0
-            ? quarterCounts.reduce((sum, count) => sum + count, 0) /
-            quarterCounts.length
-            : 0;
-      } else if (period === "halfyear") {
-        // Групуємо записи по півріччях і рахуємо унікальні ремонти за півроку
-        const halfYearRepairs = {};
-        yearRecords.forEach((r) => {
-          if (!r.isoDate || !r.car) return;
-          const recordDate = new Date(r.isoDate);
-          const halfYear = recordDate.getMonth() < 6 ? 1 : 2;
-          const halfYearKey = `${year}-H${halfYear}`;
-          if (!halfYearRepairs[halfYearKey]) {
-            halfYearRepairs[halfYearKey] = new Set();
-          }
-          const dateKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-          halfYearRepairs[halfYearKey].add(`${dateKey}_${r.car}`);
-        });
-        const halfYearCounts = Object.values(halfYearRepairs).map(
-          (halfYearSet) => halfYearSet.size,
-        );
-        value =
-          halfYearCounts.length > 0
-            ? halfYearCounts.reduce((sum, count) => sum + count, 0) /
-            halfYearCounts.length
-            : 0;
-      }
-
-      yearValues.push(value);
-    });
-
-    // Повертаємо середнє значення по всіх роках
-    if (yearValues.length === 0) return 0;
-    const sum = yearValues.reduce((a, b) => a + b, 0);
-    return sum / yearValues.length;
+    return totalUniqueRepairs;
   }
 
   /**
@@ -1232,13 +1226,12 @@ class AnalyticsApp {
         }
         dailyRepairs[dayKey].add(`${dayKey}_${r.car}`);
       });
-      const dayCounts = Object.values(dailyRepairs).map(
-        (daySet) => daySet.size,
-      );
-      value =
-        dayCounts.length > 0
-          ? dayCounts.reduce((sum, count) => sum + count, 0) / dayCounts.length
-          : 0;
+      const workingDays = this.getWorkingDaysCount(new Date(year, 0, 1), new Date(year, 11, 31));
+      
+      if (workingDays > 0) {
+        const totalRepairs = Object.values(dailyRepairs).reduce((sum, set) => sum + set.size, 0);
+        value = totalRepairs / workingDays;
+      }
     } else if (period === "week") {
       // Групуємо записи по тижнях і рахуємо унікальні ремонти за тиждень
       const weeklyRepairs = {};
@@ -1341,155 +1334,65 @@ class AnalyticsApp {
   calculateAverageByPeriod(allRecords, period, type) {
     if (!allRecords || allRecords.length === 0) return 0;
 
-    // Отримуємо всі унікальні роки
-    const years = new Set();
-    allRecords.forEach((r) => {
-      if (r.isoDate) {
-        const date = new Date(r.isoDate);
-        if (!isNaN(date.getTime())) {
-          years.add(date.getFullYear());
+    const totalValueAllYears = allRecords.reduce((sum, r) => {
+        if (type === "expenses") return sum + (r.totalWithVAT || 0);
+        if (type === "count") return sum + 1;
+        return sum;
+    }, 0);
+    
+    // Вираховуємо загальну тривалість періоду в системі
+    const dates = allRecords
+      .map(r => r.isoDate ? new Date(r.isoDate).getTime() : null)
+      .filter(t => t !== null && !isNaN(t));
+    if (dates.length < 1) return 0;
+    
+    const start = new Date(Math.min(...dates));
+    const end = new Date(); 
+
+    if (period === "day") {
+      const workingDays = this.getWorkingDaysCount(start, end);
+      return totalValueAllYears / workingDays;
+    } else if (period === "week") {
+      const workingDays = this.getWorkingDaysCount(start, end);
+      const weeks = workingDays / 5;
+      return totalValueAllYears / (weeks || 1);
+    } else if (period === "month") {
+      // Використовуємо кількість місяців з АКТИВНІСТЮ (як у карточці авто app.js)
+      const activeMonths = new Set();
+      allRecords.forEach(r => {
+        if (r.isoDate) activeMonths.add(r.isoDate.substring(0, 7));
+      });
+      const monthsCount = activeMonths.size;
+      
+      // Для "Місяць" використовуємо суму тільки за ОСТАННІЙ РІК (як у app.js)
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      
+      const lastYearValue = allRecords.reduce((sum, r) => {
+        if (!r.isoDate) return sum;
+        const d = new Date(r.isoDate);
+        if (d >= oneYearAgo) {
+            if (type === "expenses") return sum + (r.totalWithVAT || 0);
+            if (type === "count") return sum + 1;
         }
-      }
-    });
+        return sum;
+      }, 0);
 
-    if (years.size === 0) return 0;
+      return monthsCount > 0 ? lastYearValue / monthsCount : 0;
+    } else if (period === "quarter") {
+      const months = (end.getFullYear() * 12 + end.getMonth()) - (start.getFullYear() * 12 + start.getMonth()) + 1;
+      const quarters = months / 3;
+      return totalValueAllYears / (quarters || 1);
+    } else if (period === "halfyear") {
+      const months = (end.getFullYear() * 12 + end.getMonth()) - (start.getFullYear() * 12 + start.getMonth()) + 1;
+      const halfyears = months / 6;
+      return totalValueAllYears / (halfyears || 1);
+    } else if (period === "year") {
+      const yearsElapsed = (end.getFullYear() - start.getFullYear()) + (end.getMonth() + 1) / 12;
+      return totalValueAllYears / (yearsElapsed || 1);
+    }
 
-    const yearValues = [];
-
-    // Для кожного року обчислюємо значення за відповідний період
-    years.forEach((year) => {
-      const yearStart = new Date(year, 0, 1);
-      const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-
-      let value = 0;
-
-      if (period === "day") {
-        // Для дня: обчислюємо середнє значення за всі дні року
-        // Групуємо записи по днях і обчислюємо середнє значення за день
-        const dailyValues = {};
-        allRecords.forEach((r) => {
-          if (!r.isoDate) return;
-          const recordDate = new Date(r.isoDate);
-          if (recordDate.getFullYear() === year) {
-            const dayKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-            if (!dailyValues[dayKey]) {
-              dailyValues[dayKey] = {
-                expenses: 0,
-                count: 0,
-                recs: [],
-              };
-            }
-            dailyValues[dayKey].expenses += r.totalWithVAT || 0;
-            dailyValues[dayKey].count += 1;
-            dailyValues[dayKey].recs.push(r);
-          }
-        });
-
-        const dayValues = Object.values(dailyValues);
-        if (dayValues.length > 0) {
-          if (type === "expenses") {
-            value =
-              dayValues.reduce((sum, d) => sum + d.expenses, 0) /
-              dayValues.length;
-          } else if (type === "count") {
-            value =
-              dayValues.reduce((sum, d) => sum + d.count, 0) / dayValues.length;
-          } else if (type === "mileage") {
-            const vals = dayValues.map(d => this.calcMileageForRecords(d.recs)).filter(v => v > 0);
-            value = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-          }
-        }
-      } else if (period === "week") {
-        // Для тижня: обчислюємо середнє значення за всі тижні року
-        // Групуємо записи по тижнях (ISO week number)
-        const weeklyValues = {};
-        allRecords.forEach((r) => {
-          if (!r.isoDate) return;
-          const recordDate = new Date(r.isoDate);
-          if (recordDate.getFullYear() === year) {
-            // Отримуємо номер тижня
-            const weekNumber = this.getWeekNumber(recordDate);
-            const weekKey = `${year}-W${String(weekNumber).padStart(2, "0")}`;
-            if (!weeklyValues[weekKey]) {
-              weeklyValues[weekKey] = {
-                expenses: 0,
-                count: 0,
-                recs: [],
-              };
-            }
-            weeklyValues[weekKey].expenses += r.totalWithVAT || 0;
-            weeklyValues[weekKey].count += 1;
-            weeklyValues[weekKey].recs.push(r);
-          }
-        });
-
-        const weekValues = Object.values(weeklyValues);
-        if (weekValues.length > 0) {
-          if (type === "expenses") {
-            value =
-              weekValues.reduce((sum, w) => sum + w.expenses, 0) /
-              weekValues.length;
-          } else if (type === "count") {
-            value =
-              weekValues.reduce((sum, w) => sum + w.count, 0) /
-              weekValues.length;
-          } else if (type === "mileage") {
-            const vals = weekValues.map(w => this.calcMileageForRecords(w.recs)).filter(v => v > 0);
-            value = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-          }
-        }
-      } else {
-        // Для місяця, кварталу, півроку, року - використовуємо попередню логіку
-        let periodStart, periodEnd;
-        switch (period) {
-          case "month":
-            periodStart = new Date(year, 11, 1);
-            periodEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-            break;
-          case "quarter":
-            periodStart = new Date(year, 9, 1);
-            periodEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-            break;
-          case "halfyear":
-            periodStart = new Date(year, 6, 1);
-            periodEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-            break;
-          case "year":
-            periodStart = yearStart;
-            periodEnd = yearEnd;
-            break;
-          default:
-            periodStart = yearStart;
-            periodEnd = yearEnd;
-        }
-
-        // Фільтруємо записи за періодом у межах року
-        const periodRecords = allRecords.filter((r) => {
-          if (!r.isoDate) return false;
-          const recordDate = new Date(r.isoDate);
-          return recordDate >= periodStart && recordDate <= periodEnd;
-        });
-
-        // Обчислюємо значення для цього року
-        if (type === "expenses") {
-          value = periodRecords.reduce(
-            (sum, r) => sum + (r.totalWithVAT || 0),
-            0,
-          );
-        } else if (type === "count") {
-          value = periodRecords.length;
-        } else if (type === "mileage") {
-          value = this.calculateAvgMileage(periodRecords);
-        }
-      }
-
-      yearValues.push(value);
-    });
-
-    // Повертаємо середнє значення по всіх роках
-    if (yearValues.length === 0) return 0;
-    const sum = yearValues.reduce((a, b) => a + b, 0);
-    return sum / yearValues.length;
+    return totalValueAllYears;
   }
 
   /**
@@ -1525,19 +1428,11 @@ class AnalyticsApp {
         }
       });
 
-      const dayValues = Object.values(dailyValues);
-      if (dayValues.length > 0) {
-        if (type === "expenses") {
-          value =
-            dayValues.reduce((sum, d) => sum + d.expenses, 0) /
-            dayValues.length;
-        } else if (type === "count") {
-          value =
-            dayValues.reduce((sum, d) => sum + d.count, 0) / dayValues.length;
-        } else if (type === "mileage") {
-          const vals = dayValues.map(d => this.calcMileageForRecords(d.recs)).filter(v => v > 0);
-          value = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-        }
+      const workingDays = this.getWorkingDaysCount(new Date(year, 0, 1), new Date(year, 11, 31));
+      
+      if (workingDays > 0) {
+        const totalValue = Object.values(dailyValues).reduce((sum, d) => sum + (d[type] || 0), 0);
+        value = totalValue / workingDays;
       }
     } else if (period === "week") {
       // Обчислюємо середнє значення за всі тижні року
@@ -1691,7 +1586,7 @@ class AnalyticsApp {
         }
       }
     } else if (period === "year") {
-      // Для року - просто середнє значення за весь рік
+      // Для року - просто сумарне значення за весь рік
       if (type === "expenses") {
         value = yearRecords.reduce((sum, r) => sum + (r.totalWithVAT || 0), 0);
       } else if (type === "count") {
@@ -1807,24 +1702,58 @@ class AnalyticsApp {
     const periods = Object.keys(byPeriod).sort();
     const actualExpenses = periods.map((p) => byPeriod[p]);
 
+
     // Розрахунок прогнозу для графіка
-    const forecastVal = this.getForecastValue(monthlyForForecast);
+    const isYearFilter = this.filters.selectedYear === null;
+    let forecastStepValues;
+    
+    if (isYearFilter) {
+        // На 2 роки вперед для річного графіка
+        forecastStepValues = this.getForecastYearlyValues(3);
+    } else {
+        // На 3 місяці вперед для місячного графіка
+        forecastStepValues = this.getForecastValues(3);
+    }
+
     let forecastData = [];
     let forecastLabels = [...periods];
 
-    if (forecastVal > 0 && periods.length > 0) {
+    if (forecastStepValues && (isYearFilter || forecastStepValues.length > 0) && periods.length > 0) {
         const lastActualKey = periods[periods.length - 1];
-        const lastDate = new Date(lastActualKey + "-01");
-        lastDate.setMonth(lastDate.getMonth() + 1);
-        const nextMonthKey = `${lastDate.getFullYear()}-${String(lastDate.getMonth() + 1).padStart(2, "0")}`;
         
-        forecastLabels.push(nextMonthKey);
-        
-        // Другий датасет для пунктирної лінії (починається з останньої реальної точки)
+        // Починаємо з останньої реальної точки для з'єднання
         forecastData = periods.map(() => null);
-        forecastData[periods.length - 1] = actualExpenses[periods.length - 1]; // З'єднуємо з останньою точкою
-        forecastData.push(forecastVal);
+        forecastData[periods.length - 1] = actualExpenses[periods.length - 1];
+
+        if (isYearFilter) {
+            // forecastStepValues тепер об'єкт { remainderOfCurrentYear, nextYears }
+            const { remainderOfCurrentYear, nextYears } = forecastStepValues;
+            
+            // Коригуємо значення прогнозу для ПОТОЧНОГО року: факт + залишок
+            forecastData[periods.length - 1] = actualExpenses[periods.length - 1] + remainderOfCurrentYear;
+
+            let lastYear = parseInt(lastActualKey);
+            for (let i = 0; i < nextYears.length; i++) {
+                lastYear++;
+                forecastLabels.push(lastYear.toString());
+                forecastData.push(nextYears[i]);
+            }
+        } else {
+            // Коригуємо значення прогнозу для ПОТОЧНОГО місяця: факт + залишок
+            const remainderOfMonth = this.getForecastRemainderForCurrentMonth();
+            forecastData[periods.length - 1] = actualExpenses[periods.length - 1] + remainderOfMonth;
+
+            // Для наступних місяців (починаючи з індексу 1)
+            let lastDate = new Date(lastActualKey + "-01");
+            for (let i = 1; i < forecastStepValues.length; i++) {
+                lastDate.setMonth(lastDate.getMonth() + 1);
+                const nextKey = `${lastDate.getFullYear()}-${String(lastDate.getMonth() + 1).padStart(2, "0")}`;
+                forecastLabels.push(nextKey);
+                forecastData.push(forecastStepValues[i]);
+            }
+        }
     }
+
 
     // Group by category
     const byCategory = this.groupExpensesByCategory(records);
@@ -1855,7 +1784,7 @@ class AnalyticsApp {
             <div>
                 <h3 class="text-lg font-semibold text-gray-700 mb-3">Прогноз витрат</h3>
                 <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <p class="text-gray-700">${this.calculateExpenseForecast(monthlyForForecast)}</p>
+                    <p class="text-gray-700">${this.calculateExpenseForecast()}</p>
                 </div>
             </div>
         `;
@@ -2012,6 +1941,7 @@ class AnalyticsApp {
           y: {
             beginAtZero: true,
             ticks: {
+              maxTicksLimit: 8, // Обмежуємо кількість міток, щоб не "забивати" вісь
               callback: (value) =>
                 new Intl.NumberFormat("uk-UA").format(value) + " грн",
             },
@@ -2056,37 +1986,179 @@ class AnalyticsApp {
     });
   }
 
-  calculateExpenseForecast(byMonth) {
-    if (!byMonth) return "Немає даних для прогнозу";
-    const periods = Object.keys(byMonth).sort();
-    if (periods.length < 2) {
-      return "Недостатньо даних для прогнозу";
+  // ========== FORECAST CALCULATION LOGIC (UNIFIED) ==========
+  
+  /**
+   * Конфігурація для розрахунку прогнозів
+   */
+  get FORECAST_CONFIG() {
+    return {
+      REALISM_FACTOR: 0.30,      // 30% від запланованих робіт або бази (як у app.js)
+      MAX_BUDGET_MULTIPLIER: 5,  // Збільшимо ліміт для гнучкості
+      MONTHS_AHEAD: 36           // Максимальний горизонт прогнозу (збільшено до 3-х років)
+    };
+  }
+
+  /**
+   * Розраховує базові метрики для прогнозу (історичне середнє та заплановані роботи)
+   */
+  _getForecastBaseMetrics() {
+    if (!this.appData || !this.processedCars) return null;
+
+    const config = this.FORECAST_CONFIG;
+    let records = this.appData.records || [];
+    let cars = this.processedCars || [];
+    
+    // Якщо вибрано конкретне авто, використовуємо тільки його записи та інфо
+    if (this.filters.vehicle !== "all") {
+      records = records.filter(r => r.car === this.filters.vehicle);
+      cars = cars.filter(c => c.license === this.filters.vehicle);
+    }
+ 
+    // 1. Розрахунок середньомісячних витрат за алгоритмом з app.js (останній рік)
+    const avgMonthlyHistorical = this._getAvgMonthlyForCars(records);
+ 
+    // 2. Отримання прогнозу запланованих робіт від PartsForecast
+    let forecastData = null;
+    try {
+      forecastData = this.partsForecast.calculateForecast(
+        cars,
+        this.maintenanceRegulations,
+        (license, model, year, partName) => CarProcessor.findRegulationForCar(license, model, year, partName, this.maintenanceRegulations),
+        config.MONTHS_AHEAD
+      );
+    } catch (e) {
+      console.warn("Помилка при розрахунку прогнозу робіт:", e);
     }
 
-    const recentPeriods = periods.slice(-3);
-    const recentExpenses = recentPeriods.map((p) => byMonth[p]);
-    const avgExpense =
-      recentExpenses.reduce((a, b) => a + b, 0) / recentExpenses.length;
-
-    let monthLabel = "місяці";
-    if (recentPeriods.length === 2) monthLabel = "місяці";
-    else if (recentPeriods.length === 1) monthLabel = "місяць";
-
-    return `На основі середніх витрат за останні ${recentPeriods.length} ${monthLabel}, прогнозовані витрати на наступний місяць: ${new Intl.NumberFormat("uk-UA").format(Math.round(avgExpense))} грн`;
+    return {
+      avgMonthlyHistorical,
+      forecastData,
+      config
+    };
   }
 
-  getForecastValue(byMonth) {
-    if (!byMonth) return 0;
-    const periods = Object.keys(byMonth).sort();
-    if (periods.length === 0) return 0;
-
-    const recentPeriods = periods.slice(-3);
-    const recentExpenses = recentPeriods.map((p) => byMonth[p]);
-    const avgExpense =
-      recentExpenses.reduce((a, b) => a + b, 0) / recentExpenses.length;
-
-    return Math.round(avgExpense);
+  calculateExpenseForecast() {
+    return this.renderForecastSummaryHtml();
   }
+
+  renderForecastSummaryHtml() {
+    if (!this.appData || !this.filteredData || !this.filteredData.cars) return "Немає даних для прогнозу";
+
+    const cars = this.filteredData.cars;
+
+    if (cars.length === 0) return "Нічого не знайдено для вибраних фільтрів";
+
+    // Отримуємо прогноз для всього парку (синхронізуємо зі Smart Budget AI)
+    const forecast = this.financialForecaster.calculateFleetForecast(cars, this.maintenanceRegulations);
+
+    return `
+        <div class="financial-forecast-dashboard p-4 bg-white rounded-xl border border-orange-100 shadow-sm mt-6">
+            <div class="flex flex-col md:flex-row items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg border border-orange-200 gap-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">💰</span>
+                    <div>
+                        <div class="text-sm font-semibold text-orange-800 uppercase tracking-wider">Прогноз на 6 міс:</div>
+                        <div class="text-3xl font-black text-orange-600">${this.formatCurrency(forecast.totalForecast)}</div>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center md:items-end gap-1">
+                    <div class="px-3 py-1 bg-white/50 rounded-full text-[10px] font-bold text-orange-700 border border-orange-200 uppercase">
+                        Загальний бюджет парку (${cars.length} авто)
+                    </div>
+                    <div class="text-[10px] text-orange-600 font-medium">
+                        Пробіг парку: ~${this.formatMileage(forecast.averageMonthlyMileage)} км/міс
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3 px-2 flex flex-wrap gap-4 text-[10px] text-gray-500 font-medium uppercase tracking-tighter">
+                <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                    Базові витрати: ${this.formatCurrency(forecast.baseOperationalExpense)}
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                    Планове ТО: ${this.formatCurrency(forecast.scheduledMaintenanceExpense)}
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                    Рекомендовано: ${this.formatCurrency(forecast.predictiveWorkExpense)}
+                </div>
+            </div>
+        </div>
+    `;
+  }
+
+  getForecastValues(count) {
+    const metrics = this._getForecastBaseMetrics();
+    if (!metrics) return [];
+    
+    const { avgMonthlyHistorical, forecastData } = metrics;
+    const results = [];
+
+    for (let i = 0; i < count; i++) {
+        // Реалістичний алгоритм для графіка: базові + заплановані на кожен місяць
+        // Базові витрати — завжди присутні (середньомісячне)
+        const baseMonthly = avgMonthlyHistorical;
+        
+        // Заплановані роботи для конкретного місяця i
+        const monthMaintenance = (forecastData && forecastData.byMonth[i] ? forecastData.byMonth[i].totalCost : 0);
+        
+        // Загальний прогноз на місяць = база + регламентні роботи
+        const monthBudget = baseMonthly + monthMaintenance;
+        
+        results.push(monthBudget);
+    }
+
+    return results;
+  }
+
+  getForecastRemainderForCurrentMonth() {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const currentDay = now.getDate();
+    const remainingDays = Math.max(0, daysInMonth - currentDay);
+    const factor = remainingDays / daysInMonth;
+
+    const monthlyForecast = this.getForecastValues(1)[0] || 0;
+    return monthlyForecast * factor;
+  }
+
+
+  getForecastYearlyValues(yearsCount) {
+    const now = new Date();
+    const currentMonthIndex = now.getMonth(); // 0-11
+    const monthsRemainingInYear = 11 - currentMonthIndex; // Кількість місяців ПІСЛЯ поточного
+
+    // Отримуємо достатньо місяців для покриття залишку року + років вперед
+    const totalMonthsNeeded = monthsRemainingInYear + (yearsCount * 12);
+    const monthlyForecast = this.getForecastValues(totalMonthsNeeded + 1);
+
+    const results = {
+      remainderOfCurrentYear: 0,
+      nextYears: [],
+    };
+
+    // 1. Прогноз на залишок поточного року (починаючи з наступного повного місяця)
+    for (let i = 1; i <= monthsRemainingInYear; i++) {
+        results.remainderOfCurrentYear += (monthlyForecast[i] || 0);
+    }
+
+    // 2. Наступні повні роки
+    for (let y = 0; y < (yearsCount - 1); y++) {
+        let yearSum = 0;
+        const yearStartIndex = monthsRemainingInYear + 1 + (y * 12);
+        for (let m = 0; m < 12; m++) {
+            yearSum += (monthlyForecast[yearStartIndex + m] || 0);
+        }
+        results.nextYears.push(yearSum);
+    }
+
+    return results;
+  }
+
+
 
   // ========== MILEAGE SECTION ==========
   renderMileage() {
@@ -2181,74 +2253,90 @@ class AnalyticsApp {
 
     const records = this.filteredData.records;
     const cars = this.filteredData.cars;
-    const currentMileages = this.appData.currentMileages || {};
 
-    // Top 10 by cost per km
-    const costPerKm = cars
-      .map((car) => {
-        const carRecords = records.filter((r) => r.car === car.license);
-        const totalCost = carRecords.reduce(
-          (sum, r) => sum + (r.totalWithVAT || 0),
-          0,
-        );
-        const totalMileage = currentMileages[car.license] || 0;
-        const costPerKm = totalMileage > 0 ? totalCost / totalMileage : 0;
-        return { ...car, totalCost, totalMileage, costPerKm };
-      })
+    // --- PRE-CALCULATE ALL CAR METRICS ---
+    const carMetrics = cars.map((car) => {
+      const carRecords = records.filter((r) => r.car === car.license);
+      const totalCost = carRecords.reduce(
+        (sum, r) => sum + (r.totalWithVAT || 0),
+        0,
+      );
+
+      // Period mileage
+      let periodMileage = 0;
+      if (carRecords.length >= 2) {
+        const mileages = carRecords
+          .map((r) => r.mileage)
+          .filter((m) => m > 0);
+        if (mileages.length >= 2) {
+          periodMileage = Math.max(...mileages) - Math.min(...mileages);
+        }
+      }
+
+      if (periodMileage <= 0) {
+        const avgMonthly = this.getAverageMonthlyMileage(car, this.filters.selectedYear);
+        let months = 1;
+        if (this.filters.period === "year") months = 12;
+        else if (this.filters.period === "quarter") months = 3;
+        else if (this.filters.period === "month") months = 1;
+        periodMileage = avgMonthly * months;
+      }
+
+      const costPerKm = periodMileage > 0 ? totalCost / periodMileage : 0;
+      
+      // Repairs count
+      const repairKeys = new Set();
+      carRecords.forEach((r) => {
+        if (!r.isoDate) return;
+        const dateKey = r.isoDate.split("T")[0];
+        repairKeys.add(`${dateKey}_${car.license}`);
+      });
+      const repairCount = repairKeys.size;
+
+      return { 
+        ...car, 
+        totalCost, 
+        totalMileage: periodMileage, 
+        costPerKm,
+        repairCount
+      };
+    });
+
+    // --- EXISTING TOP 10 (WORST CASE) ---
+    const costPerKmTop10 = [...carMetrics]
       .sort((a, b) => b.costPerKm - a.costPerKm)
       .slice(0, 10);
 
-    // Top 10 problematic - рахуємо унікальні ремонти (одне авто в один день = один ремонт)
-    const breakdownsByCar = {};
-    const repairsByCar = {};
-
-    records.forEach((r) => {
-      if (!r.car || !r.date) return;
-      const recordDate = new Date(r.date);
-      if (isNaN(recordDate.getTime())) return;
-
-      if (!breakdownsByCar[r.car]) {
-        breakdownsByCar[r.car] = { count: 0, totalCost: 0 };
-        repairsByCar[r.car] = new Set();
-      }
-
-      // Створюємо ключ: дата + авто
-      const dateKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-      const repairKey = `${dateKey}_${r.car}`;
-
-      // Рахуємо унікальні ремонти
-      if (!repairsByCar[r.car].has(repairKey)) {
-        breakdownsByCar[r.car].count++;
-        repairsByCar[r.car].add(repairKey);
-      }
-
-      breakdownsByCar[r.car].totalCost += r.totalWithVAT || 0;
-    });
-
-    const topProblematic = Object.entries(breakdownsByCar)
-      .map(([license, data]) => ({
-        license,
-        count: data.count,
-        totalCost: data.totalCost,
-        carInfo: this.appData.carsInfo[license],
-      }))
-      .sort((a, b) => b.count - a.count)
+    const problematicTop10 = [...carMetrics]
+      .sort((a, b) => b.repairCount - a.repairCount)
       .slice(0, 10);
 
-    // Top 10 expensive cars (grouped by car)
-    const expensiveByCar = {};
-    records.forEach(r => {
-      if (!r.car || !r.totalWithVAT || r.totalWithVAT <= 0) return;
-      expensiveByCar[r.car] = (expensiveByCar[r.car] || 0) + (r.totalWithVAT || 0);
-    });
-
-    const topExpensive = Object.entries(expensiveByCar)
-      .map(([car, total]) => ({ car, totalWithVAT: total }))
-      .sort((a, b) => b.totalWithVAT - a.totalWithVAT)
+    const expensiveTop10 = [...carMetrics]
+      .sort((a, b) => b.totalCost - a.totalCost)
       .slice(0, 10);
+
+    // --- NEW TOP 5 (BEST CASE / USER REQUESTED) ---
+    // 1. Топ-5 за ₴/км (найвигідніші)
+    const bestCostPerKm5 = [...carMetrics]
+      .filter(c => c.totalMileage > 0 && c.costPerKm > 0)
+      .sort((a, b) => a.costPerKm - b.costPerKm)
+      .slice(0, 5);
+
+    // 2. Топ-5 безпроблемних
+    const troubleFree5 = [...carMetrics]
+      .filter(c => c.totalMileage > 0)
+      .sort((a, b) => a.repairCount - b.repairCount || b.totalMileage - a.totalMileage)
+      .slice(0, 5);
+
+    // 3. Топ-5 найдешевших
+    const cheapest5 = [...carMetrics]
+      .filter(c => c.totalMileage > 0)
+      .sort((a, b) => a.totalCost - b.totalCost)
+      .slice(0, 5);
 
     const html = `
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Row 1: Top 10 (Negative metrics) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-700 mb-3">Топ-10 за ₴/км</h3>
                     <div class="overflow-x-auto">
@@ -2261,19 +2349,15 @@ class AnalyticsApp {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${costPerKm
-        .map(
-          (car, idx) => `
+                                ${costPerKmTop10.map((car, idx) => `
                                     <tr class="border-b hover:bg-gray-50">
-                                        <td class="px-2 py-2">${idx + 1}</td>
+                                        <td class="px-2 py-2 text-gray-400 font-medium">${idx + 1}</td>
                                         <td class="px-2 py-2 font-medium">${car.license}</td>
                                         <td class="px-2 py-2 text-right font-bold ${car.costPerKm > 5 ? "text-red-600" : car.costPerKm > 3 ? "text-orange-600" : "text-green-600"}">
-                                            ${this.formatCurrency(car.costPerKm)}
+                                            ${this.formatCurrencyWithDecimals(car.costPerKm)}
                                         </td>
                                     </tr>
-                                `,
-        )
-        .join("")}
+                                `).join("")}
                             </tbody>
                         </table>
                     </div>
@@ -2290,17 +2374,13 @@ class AnalyticsApp {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${topProblematic
-        .map(
-          (car, idx) => `
+                                ${problematicTop10.map((car, idx) => `
                                     <tr class="border-b hover:bg-gray-50">
-                                        <td class="px-2 py-2">${idx + 1}</td>
+                                        <td class="px-2 py-2 text-gray-400 font-medium">${idx + 1}</td>
                                         <td class="px-2 py-2 font-medium">${car.license}</td>
-                                        <td class="px-2 py-2 text-right font-bold text-red-600">${car.count}</td>
+                                        <td class="px-2 py-2 text-right font-bold text-red-600">${car.repairCount}</td>
                                     </tr>
-                                `,
-        )
-        .join("")}
+                                `).join("")}
                             </tbody>
                         </table>
                     </div>
@@ -2312,22 +2392,101 @@ class AnalyticsApp {
                             <thead class="bg-gray-100">
                                 <tr>
                                     <th class="px-2 py-2 text-left w-10">#</th>
-                                    <th class="px-2 py-2 text-left">Авто</th>
+                                    <th class="px-2 py-2 text-left">Номер</th>
                                     <th class="px-2 py-2 text-right">Сума</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${topExpensive
-        .map(
-          (record, idx) => `
+                                ${expensiveTop10.map((car, idx) => `
                                     <tr class="border-b hover:bg-gray-50">
-                                        <td class="px-2 py-2">${idx + 1}</td>
-                                        <td class="px-2 py-2 font-medium text-xs">${record.car || "Невідомо"}</td>
-                                        <td class="px-2 py-2 text-right font-bold text-orange-600">${this.formatCurrency(record.totalWithVAT || 0)}</td>
+                                        <td class="px-2 py-2 text-gray-400 font-medium">${idx + 1}</td>
+                                        <td class="px-2 py-2 font-medium">${car.license}</td>
+                                        <td class="px-2 py-2 text-right font-bold text-orange-600">${this.formatCurrency(car.totalCost)}</td>
                                     </tr>
-                                `,
-        )
-        .join("")}
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="mb-8 border-gray-200">
+
+            <!-- Row 2: Top 5 (Positive metrics / Best performers) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-green-700 mb-3 flex items-center gap-2">
+                        <span class="text-xl">🌟</span> Топ-5 за ₴/км (найвигідніші)
+                    </h3>
+                    <div class="overflow-x-auto bg-green-50/30 rounded-lg p-1">
+                        <table class="w-full text-sm">
+                            <thead class="bg-green-100 text-green-800">
+                                <tr>
+                                    <th class="px-2 py-2 text-left w-10">#</th>
+                                    <th class="px-2 py-2 text-left">Номер</th>
+                                    <th class="px-2 py-2 text-right">₴/км</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${bestCostPerKm5.map((car, idx) => `
+                                    <tr class="border-b border-green-100 hover:bg-green-50 transition-colors">
+                                        <td class="px-2 py-2 text-green-600 font-bold">${idx + 1}</td>
+                                        <td class="px-2 py-2 font-medium">${car.license}</td>
+                                        <td class="px-2 py-2 text-right font-bold text-green-600">
+                                            ${this.formatCurrencyWithDecimals(car.costPerKm)}
+                                        </td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                        <span class="text-xl">✅</span> Топ-5 безпроблемних
+                    </h3>
+                    <div class="overflow-x-auto bg-blue-50/30 rounded-lg p-1">
+                        <table class="w-full text-sm">
+                            <thead class="bg-blue-100 text-blue-800">
+                                <tr>
+                                    <th class="px-2 py-2 text-left w-10">#</th>
+                                    <th class="px-2 py-2 text-left">Номер</th>
+                                    <th class="px-2 py-2 text-right">Ремонтів</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${troubleFree5.map((car, idx) => `
+                                    <tr class="border-b border-blue-100 hover:bg-blue-50 transition-colors">
+                                        <td class="px-2 py-2 text-blue-600 font-bold">${idx + 1}</td>
+                                        <td class="px-2 py-2 font-medium">${car.license}</td>
+                                        <td class="px-2 py-2 text-right font-bold text-blue-600">${car.repairCount}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-emerald-700 mb-3 flex items-center gap-2">
+                        <span class="text-xl">💵</span> Топ-5 найдешевших (сума)
+                    </h3>
+                    <div class="overflow-x-auto bg-emerald-50/30 rounded-lg p-1">
+                        <table class="w-full text-sm">
+                            <thead class="bg-emerald-100 text-emerald-800">
+                                <tr>
+                                    <th class="px-2 py-2 text-left w-10">#</th>
+                                    <th class="px-2 py-2 text-left">Номер</th>
+                                    <th class="px-2 py-2 text-right">Сума</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cheapest5.map((car, idx) => `
+                                    <tr class="border-b border-emerald-100 hover:bg-emerald-50 transition-colors">
+                                        <td class="px-2 py-2 text-emerald-600 font-bold">${idx + 1}</td>
+                                        <td class="px-2 py-2 font-medium">${car.license}</td>
+                                        <td class="px-2 py-2 text-right font-bold text-emerald-600">${this.formatCurrency(car.totalCost)}</td>
+                                    </tr>
+                                `).join("")}
                             </tbody>
                         </table>
                     </div>
@@ -2383,10 +2542,11 @@ class AnalyticsApp {
     // Group by month/year
     const byPeriod = {};
     records.forEach((r) => {
-      if (!r.date) return;
-      const date = new Date(r.date);
+      const date = r.isoDate ? new Date(r.isoDate) : (r.date ? new Date(r.date) : null);
+      if (!date || isNaN(date.getTime())) return; // Filter out invalid dates
+      
       const key =
-        this.filters.period === "all"
+        this.filters.selectedYear === null
           ? date.getFullYear().toString()
           : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       if (!byPeriod[key]) byPeriod[key] = 0;
@@ -2397,8 +2557,9 @@ class AnalyticsApp {
     const counts = periods.map((p) => byPeriod[p]);
 
     // Calculate avg per day
-    const workingDays = this.calculateWorkingDays(
-      this.filteredData.periodRange,
+    const workingDays = this.getWorkingDaysCount(
+      this.filteredData.periodRange?.start || (records.length > 0 ? new Date(Math.min(...records.map(r => r.isoDate ? new Date(r.isoDate).getTime() : Date.now()))) : new Date()),
+      this.filteredData.periodRange?.end || new Date()
     );
     const avgPerDay =
       workingDays > 0 ? (records.length / workingDays).toFixed(2) : 0;
@@ -2406,7 +2567,7 @@ class AnalyticsApp {
     const html = `
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Заявки по ${this.filters.period === "all" ? "роках" : "місяцях"}</h3>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Заявки по ${this.filters.selectedYear === null ? "роках" : "місяцях"}</h3>
                     <div class="chart-container">
                         <canvas id="requests-chart"></canvas>
                     </div>
@@ -2426,19 +2587,10 @@ class AnalyticsApp {
     this.createRequestsChart(periods, counts);
   }
 
-  calculateWorkingDays(periodRange) {
-    if (!periodRange) return 1;
-    let days = 0;
-    const current = new Date(periodRange.start);
-    while (current <= periodRange.end) {
-      const dayOfWeek = current.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        // Not Sunday or Saturday
-        days++;
-      }
-      current.setDate(current.getDate() + 1);
-    }
-    return days || 1;
+  calculateWorkingDays(periodRange, records = []) {
+    const start = periodRange?.start || (records.length > 0 ? new Date(Math.min(...records.map(r => r.isoDate ? new Date(r.isoDate).getTime() : Date.now()))) : new Date());
+    const end = periodRange?.end || new Date();
+    return this.getWorkingDaysCount(start, end);
   }
 
   createRequestsChart(labels, data) {
@@ -2472,7 +2624,10 @@ class AnalyticsApp {
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { stepSize: 1 },
+            ticks: {
+              maxTicksLimit: 10,
+              stepSize: 1 
+            },
           },
         },
       },
@@ -2480,46 +2635,96 @@ class AnalyticsApp {
   }
 
   // ========== FORECAST SECTION ==========
-  renderForecast() {
-    if (!this.filteredData || !this.processedCars) return;
+  calculateForecastBudget(months) {
+    if (!this.processedCars || !this.appData) return 0;
 
-    const html = `
-            <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 class="text-lg font-semibold text-gray-700 mb-2">💡 Рекомендований бюджет</h3>
-                <p class="text-gray-600 text-sm mb-4">На основі історичних даних та прогнозу робіт для автопарку</p>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white rounded-lg p-4">
-                        <div class="text-sm text-gray-600 mb-1">На наступний місяць</div>
-                        <div class="text-2xl font-bold text-blue-600">${this.formatCurrency(this.calculateForecastBudget(1))}</div>
-                    </div>
-                    <div class="bg-white rounded-lg p-4">
-                        <div class="text-sm text-gray-600 mb-1">На наступний квартал</div>
-                        <div class="text-2xl font-bold text-green-600">${this.formatCurrency(this.calculateForecastBudget(3))}</div>
-                    </div>
-                    <div class="bg-white rounded-lg p-4">
-                        <div class="text-sm text-gray-600 mb-1">На наступний рік</div>
-                        <div class="text-2xl font-bold text-purple-600">${this.formatCurrency(this.calculateForecastBudget(12))}</div>
-                    </div>
-                </div>
-            </div>
-        `;
+    let cars = this.processedCars || [];
+    let records = this.appData.records || [];
 
-    document.getElementById("forecast-content").innerHTML = html;
+    // Якщо вибрано конкретне авто — фільтруємо
+    if (this.filters.vehicle !== "all") {
+      cars = cars.filter(c => c.license === this.filters.vehicle);
+      records = records.filter(r => r.car === this.filters.vehicle);
+    }
+
+    if (cars.length === 0) return 0;
+
+    // === РЕАЛІСТИЧНИЙ АЛГОРИТМ (синхронізований з app.js calculateForecastForPeriod) ===
+    // Формула: БазовіВитрати(N) + ЗапланованіРоботи(N)
+
+    // Компонент 1: Базові щомісячні витрати × кількість місяців
+    const avgMonthly = this._getAvgMonthlyForCars(records);
+    const baseCost = avgMonthly * months;
+
+    // Компонент 2: Заплановані роботи від PartsPurchaseForecast
+    let maintenanceCost = 0;
+    try {
+      const forecast = this.partsForecast.calculateForecast(
+        cars,
+        this.maintenanceRegulations,
+        (license, model, year, partName) =>
+          CarProcessor.findRegulationForCar(license, model, year, partName, this.maintenanceRegulations),
+        months
+      );
+      maintenanceCost = forecast.totalBudget || 0;
+    } catch (e) {
+      console.warn("Помилка при розрахунку прогнозу робіт:", e);
+    }
+
+    return baseCost + maintenanceCost;
   }
 
-  calculateForecastBudget(months) {
-    if (!this.filteredData) return 0;
-    const records = this.filteredData.records;
-    const avgMonthlyExpense =
-      records.length > 0
-        ? records.reduce((sum, r) => sum + (r.totalWithVAT || 0), 0) /
-        (this.filteredData.periodRange
-          ? (this.filteredData.periodRange.end.getTime() -
-            this.filteredData.periodRange.start.getTime()) /
-          (30 * 24 * 60 * 60 * 1000)
-          : 1)
-        : 0;
-    return Math.round(avgMonthlyExpense * months);
+  /**
+   * Допоміжний метод: середньомісячні витрати за останній рік
+   * (ідентичний алгоритму у app.js для повної синхронізації)
+   */
+  _getAvgMonthlyForCars(records) {
+    if (!records || records.length === 0) return 0;
+
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    
+    let lastYearSpent = 0;
+    const byMonth = {};
+
+    records.forEach(record => {
+      if (!record.totalWithVAT || record.totalWithVAT <= 0) return;
+      
+      let recordDate = null;
+      if (record.isoDate) {
+        recordDate = new Date(record.isoDate);
+      } else if (record.date) {
+        if (typeof record.date === 'string' && record.date.includes('.')) {
+          const parts = record.date.split('.');
+          if (parts.length === 3) {
+            recordDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+        } else {
+          recordDate = new Date(record.date);
+        }
+      }
+      
+      if (!recordDate || isNaN(recordDate.getTime())) return;
+      
+      // Групування по місяцях (використовуємо ISO для синхронізації з app.js)
+      try {
+        const monthKey = recordDate.toISOString().substring(0, 7);
+        byMonth[monthKey] = (byMonth[monthKey] || 0) + record.totalWithVAT;
+      } catch (e) {
+        const year = recordDate.getFullYear();
+        const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+        const monthKey = `${year}-${month}`;
+        byMonth[monthKey] = (byMonth[monthKey] || 0) + record.totalWithVAT;
+      }
+      
+      // Сума за останній рік
+      if (recordDate >= oneYearAgo) {
+        lastYearSpent += record.totalWithVAT;
+      }
+    });
+
+    const monthsCount = Object.keys(byMonth).length;
+    return monthsCount > 0 ? lastYearSpent / monthsCount : 0;
   }
 
   // ========== UTILITY METHODS ==========
@@ -2529,6 +2734,15 @@ class AnalyticsApp {
       currency: "UAH",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
+    }).format(amount || 0);
+  }
+
+  formatCurrencyWithDecimals(amount, decimals = 2) {
+    return new Intl.NumberFormat("uk-UA", {
+      style: "currency",
+      currency: "UAH",
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(amount || 0);
   }
 

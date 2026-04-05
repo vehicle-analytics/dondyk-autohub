@@ -1,7 +1,7 @@
 // Service Worker для офлайн роботи та кешування
-const CACHE_NAME = "car-analytics-v3";
-const STATIC_CACHE = "car-analytics-static-v3";
-const API_CACHE = "car-analytics-api-v3";
+const CACHE_NAME = "car-analytics-v5";
+const STATIC_CACHE = "car-analytics-static-v5";
+const API_CACHE = "car-analytics-api-v5";
 
 // Static assets to cache on install
 const staticUrlsToCache = [
@@ -77,8 +77,20 @@ async function cacheFirst(request) {
 
 // Network first strategy for API
 async function networkFirst(request) {
-  const cache = await caches.open(API_CACHE);
+  // Не кешуємо важкі відповіді від Google Sheets через Service Worker Cache API
+  // Оскільки ми вже використовуємо IndexedDB у CacheManager для зберігання цих даних,
+  // подвійне кешування призводить до QuotaExceededError.
+  const url = new URL(request.url);
+  const isGoogleSheets = url.hostname.includes("google") || 
+                         url.pathname.includes("spreadsheets") ||
+                         url.searchParams.has("key");
 
+  if (isGoogleSheets) {
+    console.log("[SW] Bypassing cache for Google Sheets request");
+    return await fetch(request);
+  }
+
+  const cache = await caches.open(API_CACHE);
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {

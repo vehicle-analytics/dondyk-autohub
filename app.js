@@ -10,6 +10,7 @@ import { CarFilters } from './filters/carFilters.js';
 import { CarProcessor } from './processing/carProcessor.js';
 import { CONFIG, CONSTANTS } from './config/appConfig.js';
 import { StatsCalculator } from './analytics/statsCalculator.js';
+import { FinancialForecaster } from './processing/financialForecaster.js';
 
 class CarAnalyticsApp {
   constructor() {
@@ -25,6 +26,7 @@ class CarAnalyticsApp {
     this.partsForecast = new PartsPurchaseForecast();
     this.carRecommendations = new CarRecommendations();
     this.maintenanceForecastModule = new MaintenanceForecast();
+    this.financialForecaster = new FinancialForecaster(CONSTANTS);
 
     this.state = {
       searchTerm: "",
@@ -877,72 +879,141 @@ class CarAnalyticsApp {
 
   // === ОБРОБКА ВВОДУ ===
   handleSearchInput(event) {
-    // Оновлюємо значення в полі вводу одразу (без рендерингу)
+    // Розумний пошук: миттєва фільтрація через DOM без перерендерингу
     const searchValue = event.target.value;
     this.state.searchTerm = searchValue;
+    const term = searchValue.toLowerCase().trim();
+    const words = term ? term.split(/\s+/).filter(w => w.length > 0) : [];
 
-    // Зберігаємо фокус, оскільки при рендерінгу перемальовується весь список
-    this.isTyping = true;
-    this.saveFocus();
+    // Знаходимо всі рядки таблиці авто
+    const rows = document.querySelectorAll('tr[data-car-id]');
+    let visibleCount = 0;
 
-    // Очищаємо попередній таймер
-    if (this.searchDebounceTimer) {
-      clearTimeout(this.searchDebounceTimer);
+    rows.forEach(row => {
+      const searchText = row.getAttribute('data-search-text') || '';
+      let matches = true;
+
+      if (words.length > 0) {
+        matches = words.every(word => searchText.includes(word));
+      }
+
+      if (matches) {
+        row.style.display = '';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    // Оновлюємо лічильник кількості знайдених (якщо є на сторінці)
+    const countEl = document.getElementById('smart-search-count');
+    if (countEl) {
+      countEl.textContent = `${visibleCount} з ${rows.length}`;
     }
 
-    // Використовуємо debounce для рендерингу (300ms)
-    this.searchDebounceTimer = setTimeout(() => {
-      this.filteredCars = null;
-      this.renderCarList();
-      this.restoreFocus();
-      setTimeout(() => this.isTyping = false, 50);
-    }, 300);
+    // Показуємо/ховаємо повідомлення "не знайдено"
+    let noResultsEl = document.getElementById('smart-search-no-results');
+    if (visibleCount === 0 && rows.length > 0) {
+      if (!noResultsEl) {
+        noResultsEl = document.createElement('div');
+        noResultsEl.id = 'smart-search-no-results';
+        noResultsEl.className = 'px-4 py-8 text-center';
+        noResultsEl.innerHTML = `
+          <div class="text-gray-400 text-lg mb-2">🔍</div>
+          <div class="text-gray-600 font-medium">Автомобілів не знайдено</div>
+          <div class="text-gray-400 text-sm mt-1">Спробуйте змінити параметри пошуку</div>
+        `;
+        const tableContainer = document.getElementById('main-table-container');
+        if (tableContainer) tableContainer.appendChild(noResultsEl);
+      }
+      noResultsEl.style.display = '';
+    } else if (noResultsEl) {
+      noResultsEl.style.display = 'none';
+    }
   }
 
-  // Обробка натискання Enter в пошуку
+  // Обробка натискання Enter в пошуку (тепер нічого не потрібно, бо пошук миттєвий)
   handleSearchKeyDown(event) {
     if (event.key === "Enter") {
       event.preventDefault();
-      // Очищаємо таймер і рендеримо одразу
-      if (this.searchDebounceTimer) {
-        clearTimeout(this.searchDebounceTimer);
-      }
-      this.filteredCars = null;
-      this.renderCarList();
+      // Пошук вже працює миттєво, Enter просто запобігає відправці форми
     }
   }
 
   handleHistorySearchInput(event) {
-    // Оновлюємо значення в полі вводу одразу (без рендерингу)
+    // Розумний пошук в історії: миттєва фільтрація через DOM без перерендерингу
     const searchValue = event.target.value;
     this.state.historySearchTerm = searchValue;
+    const term = searchValue.toLowerCase().trim();
+    const words = term ? term.split(/\s+/).filter(w => w.length > 0) : [];
 
-    // Зберігаємо фокус
-    this.isTyping = true;
-    this.saveFocus();
+    // Знаходимо всі елементи історії
+    const records = document.querySelectorAll('[data-history-record]');
+    let visibleCount = 0;
+    const totalCount = records.length;
 
-    // Очищаємо попередній таймер
-    if (this.historySearchDebounceTimer) {
-      clearTimeout(this.historySearchDebounceTimer);
+    records.forEach(record => {
+      const searchText = record.getAttribute('data-history-search-text') || '';
+      let matches = true;
+
+      if (words.length > 0) {
+        matches = words.every(word => searchText.includes(word));
+      }
+
+      if (matches) {
+        record.style.display = '';
+        visibleCount++;
+      } else {
+        record.style.display = 'none';
+      }
+    });
+
+    // Оновлюємо лічильник записів
+    const countEl = document.getElementById('history-search-count');
+    if (countEl) {
+      countEl.textContent = `${visibleCount} з ${totalCount} записів`;
     }
 
-    // Використовуємо debounce для рендерингу (300ms)
-    this.historySearchDebounceTimer = setTimeout(() => {
-      this.renderCarDetail();
-      this.restoreFocus();
-      setTimeout(() => this.isTyping = false, 50);
-    }, 300);
+    // Оновлюємо бейдж пошуку
+    const badgeEl = document.getElementById('history-search-badge');
+    if (badgeEl) {
+      badgeEl.style.display = term ? '' : 'none';
+      const badgeTextEl = document.getElementById('history-search-badge-text');
+      if (badgeTextEl) badgeTextEl.textContent = `🔎 "${searchValue}"`;
+    }
+
+    // Показуємо/ховаємо кнопку очищення
+    const clearBtn = document.getElementById('history-search-clear-btn');
+    if (clearBtn) {
+      clearBtn.style.display = term ? '' : 'none';
+    }
+
+    // Показуємо/ховаємо кнопку скидання всіх фільтрів
+    const resetAllBtn = document.getElementById('history-reset-all-filters-btn');
+    if (resetAllBtn) {
+      const hasPartFilter = this.state.selectedHistoryPartFilter;
+      resetAllBtn.style.display = (term || hasPartFilter) ? '' : 'none';
+    }
+
+    // Показуємо повідомлення "не знайдено" або ховаємо
+    const historyListEl = document.getElementById('history-records-list');
+    const noResultsEl = document.getElementById('history-no-results');
+    if (historyListEl && noResultsEl) {
+      if (visibleCount === 0 && totalCount > 0) {
+        noResultsEl.style.display = '';
+        historyListEl.style.display = 'none';
+      } else {
+        noResultsEl.style.display = 'none';
+        historyListEl.style.display = '';
+      }
+    }
   }
 
-  // Обробка натискання Enter в пошуку історії
+  // Обробка натискання Enter в пошуку історії (тепер пошук миттєвий)
   handleHistorySearchKeyDown(event) {
     if (event.key === "Enter") {
       event.preventDefault();
-      // Очищаємо таймер і рендеримо одразу
-      if (this.historySearchDebounceTimer) {
-        clearTimeout(this.historySearchDebounceTimer);
-      }
-      this.renderCarDetail();
+      // Пошук вже працює миттєво, Enter просто запобігає відправці форми
     }
   }
 
@@ -1392,7 +1463,7 @@ class CarAnalyticsApp {
                         value="${searchTerm}"
                         oninput="app.handleSearchInput(event)"
                         onkeydown="app.handleSearchKeyDown(event)"
-                        placeholder="Номер, модель, місто... (Enter для пошуку)"
+                        placeholder="Миттєвий пошук: номер, модель, місто..."
                         class="px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800 text-xs flex-1 min-w-0"
                         style="padding-top: 0.35rem; padding-bottom: 0.35rem;"
                         id="mainSearchInput"
@@ -1400,6 +1471,7 @@ class CarAnalyticsApp {
                         autocorrect="off"
                         spellcheck="false"
                     >
+                    <span id="smart-search-count" class="text-xs text-gray-500 whitespace-nowrap flex-shrink-0 hidden sm:inline"></span>
                 </div>
                 
                 <!-- Dropdown Стан авто - фіксована ширина -->
@@ -1787,6 +1859,7 @@ class CarAnalyticsApp {
     return `
             <tr class="${rowBg} hover:bg-blue-50 cursor-pointer transition-colors"
                 data-car-id="${carIdentifier}"
+                data-search-text="${[car.car, car.city, car.model, car.license].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;')}"
                 onclick="if (!event.target.closest('button') && !event.target.closest('select') && !event.target.closest('th')) { app.setState({ selectedCar: '${carIdentifier}' }); }">
                 <td class="text-center w-[100px]" style="padding-left: 0.7rem; padding-right: 0.7rem; padding-top: 0.5rem; padding-bottom: 0.5rem;">
                     <div class="flex flex-col items-center gap-1">
@@ -2018,79 +2091,73 @@ class CarAnalyticsApp {
       });
     }
 
+    // Ключові слова для виключення робіт з розрахунку "Базових витрат" (щоб не рахувати їх двічі)
+    const maintenanceRegex = /ТО|масло|фільтр|ГРМ|помпа|ролик|ремонт|заміна|ходова|колодки|диски|амортизатор|ричаг|сайлентблок|підвіска|зчеплення|стартер|генератор|акумулятор|комп'ютерна|діагностика/i;
+
     // Групуємо витрати по місяцях та роках
     filteredHistory.forEach((record) => {
       if (record.totalWithVAT > 0) {
+        // Виключення відмов (вже зроблено в dataProcessor, але для впевненості)
+        if (record.status && String(record.status).trim().toLowerCase() === 'відмова') return;
+
         stats.totalSpent += record.totalWithVAT;
 
-        // Парсимо дату з урахуванням формату DD.MM.YYYY
+        // Парсимо дату
         let recordDate = null;
         if (record.date) {
-          // Якщо дата в форматі DD.MM.YYYY
           if (typeof record.date === "string" && record.date.includes(".")) {
             const parts = record.date.split(".");
             if (parts.length === 3) {
               const [day, month, year] = parts;
-              recordDate = new Date(
-                parseInt(year),
-                parseInt(month) - 1,
-                parseInt(day),
-              );
+              recordDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             }
           } else {
-            // Спробуємо стандартний парсинг
             recordDate = new Date(record.date);
           }
         }
 
-        // Перевіряємо чи дата валідна
         if (!recordDate || isNaN(recordDate.getTime())) {
-          // Якщо дата невалідна, пропускаємо групування по датах, але враховуємо в загальній сумі
           const category = this.detectExpenseCategory(record.description);
-          stats.byCategory[category] =
-            (stats.byCategory[category] || 0) + record.totalWithVAT;
+          stats.byCategory[category] = (stats.byCategory[category] || 0) + record.totalWithVAT;
           return;
         }
 
         const recordYear = recordDate.getFullYear();
+        stats.byYear[recordYear] = (stats.byYear[recordYear] || 0) + record.totalWithVAT;
 
-        // Групування по роках
-        stats.byYear[recordYear] =
-          (stats.byYear[recordYear] || 0) + record.totalWithVAT;
-
+        // Розраховуємо середньомісячні та групуємо по місяцях ТІЛЬКИ для останнього року
         if (recordDate >= oneYearAgo) {
-          stats.lastYearSpent += record.totalWithVAT;
+          // Для базового середнього чеку ВИКЛЮЧАЄМО великі ремонти та ТО
+          const isMaintenance = maintenanceRegex.test(record.description || '');
+          
+          if (!isMaintenance) {
+            stats.lastYearSpent += record.totalWithVAT;
+            
+            try {
+              const monthKey = recordDate.toISOString().substring(0, 7);
+              stats.byMonth[monthKey] = (stats.byMonth[monthKey] || 0) + record.totalWithVAT;
+            } catch (e) {
+              const year = recordDate.getFullYear();
+              const month = String(recordDate.getMonth() + 1).padStart(2, "0");
+              const monthKey = `${year}-${month}`;
+              stats.byMonth[monthKey] = (stats.byMonth[monthKey] || 0) + record.totalWithVAT;
+            }
+          }
         }
 
-        // Групування по місяцях (РРРР-ММ)
-        try {
-          const monthKey = recordDate.toISOString().substring(0, 7);
-          stats.byMonth[monthKey] =
-            (stats.byMonth[monthKey] || 0) + record.totalWithVAT;
-        } catch (e) {
-          // Якщо не вдалося отримати ISO string, використовуємо альтернативний метод
-          const year = recordDate.getFullYear();
-          const month = String(recordDate.getMonth() + 1).padStart(2, "0");
-          const monthKey = `${year}-${month}`;
-          stats.byMonth[monthKey] =
-            (stats.byMonth[monthKey] || 0) + record.totalWithVAT;
-        }
-
-        // Визначення категорії витрат
         const category = this.detectExpenseCategory(record.description);
-        stats.byCategory[category] =
-          (stats.byCategory[category] || 0) + record.totalWithVAT;
+        stats.byCategory[category] = (stats.byCategory[category] || 0) + record.totalWithVAT;
       }
     });
 
-    // Середньомісячні витрати (за останній рік)
+    // Середньомісячні витрати (за останній рік, без ТО та ремонтів)
+    // Це забезпечує реалістичний "фон" витрат
     const monthsCount = Object.keys(stats.byMonth).length;
-    stats.averagePerMonth =
-      monthsCount > 0 ? stats.lastYearSpent / monthsCount : 0;
+    stats.averagePerMonth = monthsCount > 0 ? stats.lastYearSpent / monthsCount : 0;
 
-    // Прогноз на наступні 6 місяців на основі статусів запчастин та регламенту
+    // Прогноз на наступні 6 місяців — реалістичний алгоритм
     if (car) {
-      stats.predictions.next6Months = this.calculateForecast6Months(car);
+      stats.predictions.next6Months = this.calculateForecastForPeriod(car, 6);
     } else {
       stats.predictions.next6Months = stats.averagePerMonth * 6;
     }
@@ -2098,32 +2165,28 @@ class CarAnalyticsApp {
     return stats;
   }
 
-  // Розрахунок прогнозу на 6 місяців на основі статусів та регламенту
-  calculateForecast6Months(car) {
-    // Використовуємо новий алгоритм якщо доступний
-    if (this.partsForecast && this.processedCars) {
-      try {
-        const forecast = this.partsForecast.calculateForecast(
-          [car],
-          this.maintenanceRegulations,
-          (license, model, year, partName) =>
-            this.findRegulationForCar(license, model, year, partName),
-          6,
-        );
-        return forecast.totalBudget;
-      } catch (e) {
-        console.warn("Помилка при використанні нового алгоритму прогнозу:", e);
-      }
+  // Розрахунок прогнозу на N місяців — реалістичний алгоритм
+  // Формула: БазовіВитрати(N) + ЗапланованіРоботи(N)
+  calculateForecastForPeriod(car, months = 6) {
+    if (!this.financialForecaster) {
+      this.financialForecaster = new FinancialForecaster(CONSTANTS);
     }
+    
+    // Використовуємо уніфікований рушій FinancialForecaster для гарантії ідентичності з аналітикою
+    const forecast = this.financialForecaster.calculateCarForecast(
+      car, 
+      this.maintenanceRegulations, 
+      months
+    );
+    
+    return forecast.totalForecast;
+  }
 
-    // Fallback до старого алгоритму
-    const now = new Date();
+  // Fallback розрахунок запланованих робіт по статусах запчастин
+  _calculateMaintenanceFallback(car, months) {
     let forecastCost = 0;
-
-    // Середні вартості робіт (можна витягти з історії)
     const avgCosts = this.getAverageCosts(car.history);
 
-    // Перевіряємо всі запчастини та роботи
     for (const partName in car.parts) {
       const part = car.parts[partName];
       if (!part) continue;
@@ -2136,12 +2199,10 @@ class CarAnalyticsApp {
       );
       if (!regulation || regulation.normalValue === "chain") continue;
 
-      // Визначаємо, коли потрібно буде обслуговування в наступні 6 місяців
       let monthsUntilService = null;
 
       if (regulation.periodType === "пробіг") {
         const remainingKm = regulation.normalValue - part.mileageDiff;
-        // Приблизна оцінка: скільки місяців до обслуговування на основі середньомісячного пробігу
         const avgMonthlyMileage = this.getAverageMonthlyMileage(car);
         if (avgMonthlyMileage > 0 && remainingKm > 0) {
           monthsUntilService = remainingKm / avgMonthlyMileage;
@@ -2159,48 +2220,80 @@ class CarAnalyticsApp {
         }
       }
 
-      // Якщо обслуговування потрібне в наступні 6 місяців
       if (
         monthsUntilService !== null &&
-        monthsUntilService <= 6 &&
+        monthsUntilService <= months &&
         monthsUntilService > 0
       ) {
-        // Додаємо вартість, якщо статус критичний або попереджувальний
         if (part.status === "critical" || part.status === "warning") {
-          const cost = avgCosts[partName] || this.getEstimatedCost(partName);
-          forecastCost += cost;
-        }
-
-        // Для робіт (червоний або помаранчевий статус) - завжди додаємо
-        const isWork = [
-          "Діагностика ходової 🔍",
-          "Розвал-сходження 📐",
-          "Профілактика направляючих супортів 🛠️",
-          "Компютерна діагностика 💻",
-          "Прожиг сажового фільтру 🔥",
-          "ТО (масло+фільтри) 🛢️",
-        ].includes(partName);
-        if (
-          isWork &&
-          (part.status === "critical" || part.status === "warning")
-        ) {
           const cost = avgCosts[partName] || this.getEstimatedCost(partName);
           forecastCost += cost;
         }
       }
     }
 
-    // Додаємо базову оцінку на основі середньомісячних витрат (якщо немає критичних статусів)
-    if (forecastCost === 0) {
-      const avgMonthly = this.calculateCostStats(car.history).averagePerMonth;
-      forecastCost = avgMonthly * 6;
-    } else {
-      // Додаємо 30% базових витрат до прогнозу
-      const avgMonthly = this.calculateCostStats(car.history).averagePerMonth;
-      forecastCost += avgMonthly * 6 * 0.3;
-    }
-
     return forecastCost;
+  }
+
+  // Зворотна сумісність
+  calculateForecast6Months(car) {
+    return this.calculateForecastForPeriod(car, 6);
+  }
+
+  // Швидкий розрахунок середньомісячних витрат з історії
+  // Логіка ідентична calculateCostStats.averagePerMonth, але без рекурсії
+  _getAvgMonthlyFromHistory(history) {
+    if (!history || history.length === 0) return 0;
+    
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    const maintenanceRegex = /ТО|масло|фільтр|ГРМ|помпа|ролик|ремонт|заміна|ходова|колодки|диски|амортизатор|ричаг|сайлентблок|підвіска|зчеплення|стартер|генератор|акумулятор|комп'ютерна|діагностика/i;
+    
+    let lastYearSpentTotal = 0;
+    const byMonth = {};
+
+    history.forEach(record => {
+      if (!record.totalWithVAT || record.totalWithVAT <= 0) return;
+      if (record.status && String(record.status).trim().toLowerCase() === 'відмова') return;
+      
+      let recordDate = null;
+      if (record.isoDate) {
+        recordDate = new Date(record.isoDate);
+      } else if (record.date) {
+        if (typeof record.date === 'string' && record.date.includes('.')) {
+          const parts = record.date.split('.');
+          if (parts.length === 3) {
+            recordDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+        } else {
+          recordDate = new Date(record.date);
+        }
+      }
+      
+      if (!recordDate || isNaN(recordDate.getTime())) return;
+      
+      // Аналізуємо ТІЛЬКИ останній рік
+      if (recordDate >= oneYearAgo) {
+        const isMaintenance = maintenanceRegex.test(record.description || '');
+        
+        if (!isMaintenance) {
+          lastYearSpentTotal += record.totalWithVAT;
+          
+          try {
+            const monthKey = recordDate.toISOString().substring(0, 7);
+            byMonth[monthKey] = (byMonth[monthKey] || 0) + record.totalWithVAT;
+          } catch (e) {
+            const year = recordDate.getFullYear();
+            const month = String(recordDate.getMonth() + 1).padStart(2, '0');
+            const monthKey = `${year}-${month}`;
+            byMonth[monthKey] = (byMonth[monthKey] || 0) + record.totalWithVAT;
+          }
+        }
+      }
+    });
+
+    const monthsCount = Object.keys(byMonth).length;
+    return monthsCount > 0 ? lastYearSpentTotal / monthsCount : 0;
   }
 
   // Отримати середні вартості з історії
@@ -2829,6 +2922,71 @@ class CarAnalyticsApp {
   }
 
   // === ГЕНЕРАЦІЯ HTML ДЛЯ ДЕТАЛЬНОГО ПЕРЕГЛЯДУ АВТО ===
+  generateFinancialForecastHTML(car) {
+    if (!this.financialForecaster) return "";
+
+    const forecast = this.financialForecaster.calculateCarForecast(car, this.maintenanceRegulations);
+    
+    return `
+      <div class="financial-forecast-section mt-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <span>📊</span> Фінансовий прогноз (на 6 міс.)
+          </h3>
+          <div class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wider">
+            Smart Budget AI
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <div class="text-xs text-blue-600 font-semibold mb-1 uppercase">Базові витрати (BOE)</div>
+            <div class="text-xl font-bold text-blue-900">${this.formatPrice(forecast.baseOperationalExpense)} ₴</div>
+            <div class="text-[10px] text-blue-500 mt-1">Основано на історії за останній рік</div>
+          </div>
+          <div class="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+            <div class="text-xs text-indigo-600 font-semibold mb-1 uppercase">Планове ТО (SM)</div>
+            <div class="text-xl font-bold text-indigo-900">${this.formatPrice(forecast.scheduledMaintenanceExpense)} ₴</div>
+            <div class="text-[10px] text-indigo-500 mt-1">Прогноз по регламенту та пробігу</div>
+          </div>
+          <div class="p-3 bg-purple-50 rounded-lg border border-purple-100">
+            <div class="text-xs text-purple-600 font-semibold mb-1 uppercase">Рекомендовано (PW)</div>
+            <div class="text-xl font-bold text-purple-900">${this.formatPrice(forecast.predictiveWorkExpense)} ₴</div>
+            <div class="text-[10px] text-purple-500 mt-1">На основі технічного стану сьогодні</div>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-gray-900 to-blue-900 rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
+          <div class="relative z-10">
+            <div class="flex justify-between items-start mb-4">
+              <div>
+                <div class="text-xs text-blue-300 font-bold uppercase tracking-widest mb-1">Рекомендований бюджет</div>
+                <div class="text-3xl font-extrabold">${this.formatPrice(forecast.totalForecast)} ₴</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-blue-300 font-bold uppercase tracking-widest mb-1">Резерв (15%)</div>
+                <div class="text-lg font-bold">${this.formatPrice(forecast.reserveBuffer)} ₴</div>
+              </div>
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-white/10 flex flex-wrap gap-4">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                <span class="text-xs text-blue-100">Інфляція: +10% враховано</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                <span class="text-xs text-blue-100">Пробіг: ~${this.formatNumber(forecast.averageMonthlyMileage)} км/міс</span>
+              </div>
+            </div>
+          </div>
+          <!-- Decorative element -->
+          <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
+        </div>
+      </div>
+    `;
+  }
+
   generateCarDetailHTML(car) {
     const {
       selectedHistoryPartFilter,
@@ -3003,10 +3161,10 @@ class CarAnalyticsApp {
 
                   return `
                         <div class="bg-white rounded-xl shadow-xl p-3 sm:p-4 mb-4 border border-gray-200">
-                                        ${recommendationsHTML}
+                                         ${recommendationsHTML}
                         </div>
                                     ${forecastHTML}
-                                `;
+                                 `;
                 } catch (e) {
                   console.error(
                     "Помилка відображення вкладки рекомендацій:",
@@ -4809,38 +4967,34 @@ class CarAnalyticsApp {
   }
 
   generateCarHistoryHTML(car, displayHistory) {
+    const hasPartFilter = this.state.selectedHistoryPartFilter;
+    const hasSearchTerm = this.state.historySearchTerm;
+    const hasFilters = hasPartFilter || hasSearchTerm;
+
     return `
             <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <span>📜</span> Історія обслуговування
-                ${this.state.selectedHistoryPartFilter ||
-        this.state.historySearchTerm
-        ? `
-                    <div class="flex flex-wrap items-center gap-1">
-                        ${this.state.selectedHistoryPartFilter
+                <div class="flex flex-wrap items-center gap-1">
+                    ${hasPartFilter
           ? `
-                            <span class="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                                📌 ${this.state.selectedHistoryPartFilter}
-                            </span>
-                        `
+                        <span class="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                            📌 ${this.state.selectedHistoryPartFilter}
+                        </span>
+                    `
           : ""
         }
-                        ${this.state.historySearchTerm
-          ? `
-                            <span class="text-xs font-normal text-green-600 bg-green-50 px-2 py-1 rounded">
-                                🔎 "${this.state.historySearchTerm}"
-                            </span>
-                        `
-          : ""
-        }
-                        <button onclick="app.setState({ selectedHistoryPartFilter: null, historySearchTerm: '' });"
-                                class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1">
-                            ✕ Скинути всі фільтри
-                        </button>
-                    </div>
-                `
-        : ""
-      }
-                <span class="ml-auto text-xs font-normal text-gray-600">
+                    <span id="history-search-badge" class="text-xs font-normal text-green-600 bg-green-50 px-2 py-1 rounded"
+                          style="display: ${hasSearchTerm ? '' : 'none'};">
+                        <span id="history-search-badge-text">🔎 "${this.state.historySearchTerm}"</span>
+                    </span>
+                    <button id="history-reset-all-filters-btn"
+                            onclick="app.setState({ selectedHistoryPartFilter: null, historySearchTerm: '' });"
+                            class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs font-semibold transition-colors flex items-center gap-1"
+                            style="display: ${hasFilters ? '' : 'none'};">
+                        ✕ Скинути всі фільтри
+                    </button>
+                </div>
+                <span id="history-search-count" class="ml-auto text-xs font-normal text-gray-600">
                     ${displayHistory.length} з ${car.history.length} записів
                 </span>
             </h3>
@@ -4853,24 +5007,21 @@ class CarAnalyticsApp {
                         value="${this.state.historySearchTerm}"
                         oninput="app.handleHistorySearchInput(event)"
                         onkeydown="app.handleHistorySearchKeyDown(event)"
-                        placeholder="Пошук за текстом, датою або пробігом... (Enter для пошуку)"
+                        placeholder="Миттєвий пошук за текстом, датою або пробігом..."
                         class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-800"
                         id="historySearchInput"
                         autocomplete="off"
                         autocorrect="off"
                         spellcheck="false"
                     >
-                    ${this.state.historySearchTerm
-        ? `
-                        <button onclick="app.setState({ historySearchTerm: '' });"
-                                class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs font-semibold transition-colors">
-                            ✕
-                        </button>
-                    `
-        : ""
-      }
+                    <button id="history-search-clear-btn"
+                            onclick="app.setState({ historySearchTerm: '' });"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs font-semibold transition-colors"
+                            style="display: ${hasSearchTerm ? '' : 'none'};">
+                        ✕
+                    </button>
                 </div>
-                <div class="text-xs text-gray-400 mt-1">Пошук працює по опису, даті, пробігу, коду запчастини та статусу</div>
+                <div class="text-xs text-gray-400 mt-1">Розумний пошук — результати з'являються миттєво при наборі тексту</div>
             </div>
 
             ${displayHistory.length === 0 ? this.generateNoHistoryHTML() : this.generateHistoryListHTML(displayHistory)}
@@ -4903,8 +5054,13 @@ class CarAnalyticsApp {
 
   generateHistoryListHTML(history) {
     return `
-            <div class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+            <div id="history-records-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                 ${history.map((record) => this.generateHistoryRecordHTML(record)).join("")}
+            </div>
+            <div id="history-no-results" style="display: none;" class="text-center py-8 text-gray-500">
+                <div class="text-3xl mb-2">🔍</div>
+                <div class="text-base font-semibold">Записів не знайдено</div>
+                <div class="text-xs text-gray-400 mt-1">Спробуйте змінити параметри пошуку</div>
             </div>
         `;
   }
@@ -4961,8 +5117,20 @@ class CarAnalyticsApp {
         ? "шт."
         : "";
 
+    // Формуємо текст для розумного пошуку
+    const historySearchText = [
+      record.description || '',
+      record.date || '',
+      record.mileage ? record.mileage.toString() : '',
+      record.partCode || '',
+      record.unit || '',
+      record.status || ''
+    ].join(' ').toLowerCase().replace(/"/g, '&quot;');
+
     return `
-            <div class="bg-gray-50 hover:bg-gray-100 rounded-lg p-3 sm:p-4 border border-gray-200 transition-all hover:shadow-sm">
+            <div class="bg-gray-50 hover:bg-gray-100 rounded-lg p-3 sm:p-4 border border-gray-200 transition-all hover:shadow-sm"
+                 data-history-record="true"
+                 data-history-search-text="${historySearchText}">
                 <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-2">
                         <span class="text-base">📅</span>

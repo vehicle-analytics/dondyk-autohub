@@ -24,7 +24,7 @@
     <!-- Modules are now imported in analytics.js -->
 
     <!-- Main app as a module -->
-    <script type="module" src="analytics.js"></script>
+    <script type="module" src="analytics.js?v=20260330.1"></script>
 
     <!-- Instant Loading Script (Stale-While-Revalidate) -->
     <script>
@@ -195,6 +195,15 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Оверлей для тривалої обробки даних (Web Worker) -->
+        <div id="processing-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-xs">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
+                <h3 class="text-lg font-bold text-gray-900 mb-1">📊 Обробка даних...</h3>
+                <p class="text-sm text-gray-600">Це може зайняти кілька секунд для великих обсягів даних.</p>
+            </div>
+        </div>
 
         <div id="main-interface" class="hidden">
             <!-- Header -->
@@ -304,11 +313,11 @@
                     <div id="expenses-content"></div>
                 </div>
 
-                <!-- Mileage Section -->
-                <div id="mileage-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
+                <!-- Mileage Section removed per user request -->
+                <!-- <div id="mileage-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">📏 Пробіг</h2>
                     <div id="mileage-content"></div>
-                </div>
+                </div> -->
 
                 <!-- Ratings Section -->
                 <div id="ratings-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
@@ -316,12 +325,12 @@
                     <div id="ratings-content"></div>
                 </div>
 
-                <!-- Breakdown Analysis Section -->
-                <div id="breakdown-section"
+                <!-- Breakdown Analysis Section removed per user request -->
+                <!-- <div id="breakdown-section"
                     class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
                     <h2 class="text-xl font-bold text-gray-800 mb-4">🔧 Аналіз поломок</h2>
                     <div id="breakdown-content"></div>
-                </div>
+                </div> -->
 
                 <!-- Requests Section -->
                 <div id="requests-section"
@@ -330,12 +339,7 @@
                     <div id="requests-content"></div>
                 </div>
 
-                <!-- Forecast Section -->
-                <div id="forecast-section"
-                    class="bg-white rounded-xl shadow-lg p-6 mb-8 border border-gray-200 fade-in">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">🔮 Прогноз</h2>
-                    <div id="forecast-content"></div>
-                </div>
+
             </div>
 
             <!-- Footer -->

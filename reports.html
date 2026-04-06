@@ -25,23 +25,7 @@
     <!-- Main app as a module -->
     <script type="module" src="reports.js"></script>
 
-    <!-- Instant Loading Script (Stale-While-Revalidate) -->
-    <script>
-        if (localStorage.getItem("carAnalyticsData")) {
-            document.documentElement.classList.add('has-cache');
-        }
-    </script>
-    <style>
-        html.has-cache #loading-screen {
-            display: none !important;
-        }
 
-        html.has-cache #main-interface {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-    </style>
     <style>
         .report-table {
             width: 100%;

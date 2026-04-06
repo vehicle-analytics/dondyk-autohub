@@ -18,22 +18,6 @@
 
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Instant Loading Script: показуємо кешовані дані одразу без затримки -->
-    <script>
-        if (localStorage.getItem("carAnalyticsCacheTime")) {
-            document.documentElement.classList.add('has-cache');
-        }
-    </script>
-    <style>
-        html.has-cache #loading-screen {
-            display: none !important;
-        }
-        html.has-cache #main-interface {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-    </style>
 
     <!-- Main app as a module -->
     <script type="module" src="app.js"></script>

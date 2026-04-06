@@ -9,8 +9,6 @@
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#1e40af" media="(prefers-color-scheme: light)">
     <link rel="icon" href="Logo.png">
-    <link rel="manifest" href="manifest.json">
-
     <!-- Preconnect to CDNs -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
 
@@ -218,19 +216,6 @@
             </div>
         </footer>
     </div>
-
-    <script>
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(registration => {
-                    console.log('✅ Service Worker registered:', registration.scope);
-                })
-                .catch(error => {
-                    console.log('❌ Service Worker registration failed:', error);
-                });
-        }
-    </script>
 </body>
 
 </html>

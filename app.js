@@ -1,3 +1,4 @@
+import AnalyticsWorker from './analyticsWorker.js?worker';
 import { DataProcessor } from './data/dataProcessor.js';
 import { Formatters } from './utils/formatters.js';
 import { CacheManager } from './cache/cacheManager.js';
@@ -51,7 +52,7 @@ class CarAnalyticsApp {
    */
   callWorker(type, data) {
     if (!this.worker) {
-      this.worker = new Worker('analyticsWorker.js', { type: 'module' });
+      this.worker = new AnalyticsWorker();
     }
     
     return new Promise((resolve, reject) => {
@@ -85,27 +86,23 @@ class CarAnalyticsApp {
     this.updateLoadingProgress(20);
 
     // Ініціалізація Web Worker
-    this.worker = new Worker('analyticsWorker.js', { type: 'module' });
+    this.worker = new AnalyticsWorker();
 
-    // ВАЖЛИВО: Очікуємо на кеш асинхронно для миттєвого відображення
+    // Очікуємо на кеш з IndexedDB для миттєвого відображення
     const cached = await CacheManager.getCachedData();
-    const preBaked = window.preBakedData;
 
-    // Спроба миттєвого відображення з кешу або запечених даних
-    const initialData = cached || preBaked;
-
-    if (initialData && initialData.carsInfo && Object.keys(initialData.carsInfo).length > 0) {
-      this.appData = initialData;
-      this.maintenanceRegulations = initialData.regulations || [];
+    if (cached && cached.carsInfo && Object.keys(cached.carsInfo).length > 0) {
+      this.appData = cached;
+      this.maintenanceRegulations = cached.regulations || [];
       if (
-        initialData.processedCars &&
-        Array.isArray(initialData.processedCars) &&
-        initialData.processedCars.length > 0
+        cached.processedCars &&
+        Array.isArray(cached.processedCars) &&
+        cached.processedCars.length > 0
       ) {
-        this.processedCars = initialData.processedCars;
+        this.processedCars = cached.processedCars;
       }
       
-      // Рендеримо миттєво
+      // Рендеримо миттєво з кешу
       this.render();
       this.updateLoadingProgress(100);
     }
@@ -162,9 +159,27 @@ class CarAnalyticsApp {
     // Реєстрація Periodic Sync через Service Worker (якщо підтримується)
     if ("serviceWorker" in navigator && "periodicSync" in ServiceWorkerRegistration.prototype) {
       navigator.serviceWorker.ready.then((registration) => {
-        registration.active.postMessage({ type: "REGISTER_PERIODIC_SYNC" });
-      });
+        registration.active?.postMessage({ type: "REGISTER_PERIODIC_SYNC" });
+      }).catch(err => console.warn("SW ready failed:", err));
     }
+
+    // Обработка оффлайн/онлайн режиму
+    window.addEventListener('offline', () => {
+      console.log('📶 Пристрій перейшов в офлайн режим');
+      if (typeof this.showNotification === 'function') {
+        this.showNotification("Немає підключення до інтернету. Працюємо в офлайн-режимі.", "warning");
+      }
+      this.updateOfflineUI(true);
+    });
+
+    window.addEventListener('online', () => {
+      console.log('📶 Підключення до інтернету відновлено');
+      if (typeof this.showNotification === 'function') {
+        this.showNotification("Підключення відновлено! Оновлюємо дані...", "success");
+      }
+      this.updateOfflineUI(false);
+      this.refreshData(true);
+    });
 
     // Обслуговування повідомлень від Service Worker
     if ("serviceWorker" in navigator) {
@@ -199,6 +214,18 @@ class CarAnalyticsApp {
     });
   }
 
+  updateOfflineUI(isOffline) {
+    const footerInfo = document.getElementById("footer-update-info");
+    if (footerInfo) {
+      const offlineIndicator = document.getElementById("offline-indicator");
+      if (isOffline && !offlineIndicator) {
+         footerInfo.innerHTML += ' <span id="offline-indicator" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">ОФЛАЙН</span>';
+      } else if (!isOffline && offlineIndicator) {
+         offlineIndicator.remove();
+      }
+    }
+  }
+
   // === ЗАВАНТАЖЕННЯ ДАНИХ ===
   updateLoadingProgress(percent) {
     const bar = document.getElementById("loading-bar");
@@ -210,7 +237,6 @@ class CarAnalyticsApp {
   async loadData(forceRefresh = false) {
     try {
       const cached = await CacheManager.getCachedData();
-      const preBaked = window.preBakedData;
       let hasData = false;
       let hasCache = false;
 
@@ -218,10 +244,6 @@ class CarAnalyticsApp {
         this.appData = cached;
         hasData = true;
         hasCache = true;
-      } else if (preBaked && preBaked.carsInfo && Object.keys(preBaked.carsInfo).length > 0) {
-        this.appData = preBaked;
-        hasData = true;
-        console.log("⚡ Using pre-baked fallback data");
       }
 
       if (hasData) {
@@ -234,9 +256,7 @@ class CarAnalyticsApp {
 
         const lastUpdatedEl = document.getElementById("last-updated");
         if (lastUpdatedEl && !lastUpdatedEl.innerHTML.includes("badge")) {
-          const badgeText = cached ? "КЕШ" : "ГОТОВО";
-          const badgeColor = cached ? "var(--warning-color,#fbbf24)" : "var(--success-color,#10b981)";
-          lastUpdatedEl.innerHTML += ` <span class="badge" style="background:${badgeColor};color:#000;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">${badgeText}</span>`;
+          lastUpdatedEl.innerHTML += ` <span class="badge" style="background:var(--warning-color,#fbbf24);color:#000;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">КЕШ</span>`;
         }
       }
 
@@ -308,16 +328,67 @@ class CarAnalyticsApp {
       throw new Error("Не визначено конфігурацію для Google Sheets");
     }
 
+    if (!navigator.onLine) {
+      console.warn("⚠️ Пристрій офлайн. Використовується кеш PWA або IndexedDB.");
+      if (this.appData) {
+        return false; // Дані не змінилися (не вдалося завантажити нові)
+      } else {
+        throw new Error("Відсутнє з'єднання з інтернетом та немає кешованих даних.");
+      }
+    }
+
     this.updateLoadingProgress(30);
     this.updateLoadingProgress(40);
-    console.log("🌐 Fetching data from Google Sheets...");
-    const [scheduleData, historyData, regulationsData, photoAssessmentData] =
+    
+    // === Спроба завантажити Pre-baked Data ===
+    let usedSeedData = false;
+    let scheduleData, historyData, regulationsData, photoAssessmentData;
+
+    if (!this.appData || !this.appData.records || this.appData.records.length === 0) {
+      try {
+        console.log("🌐 Спроба завантаження попередньо згенерованих даних (seed-data.json)...");
+        const seedResponse = await fetch('/seed-data.json');
+        if (seedResponse.ok) {
+          const seedData = await seedResponse.json();
+          if (seedData && seedData.scheduleData && seedData.historyData) {
+            console.log("📦 Знайдено seed-data.json! Завантажуємо миттєво.");
+            scheduleData = seedData.scheduleData;
+            historyData = seedData.historyData;
+            regulationsData = seedData.regulationsData || [];
+            photoAssessmentData = seedData.photoAssessmentData || [];
+            usedSeedData = true;
+
+            // Обробляємо та миттєво викликаємо рендер
+            this.processData(scheduleData, historyData, regulationsData, photoAssessmentData);
+            this.render();
+            
+            const loadingScreen = document.getElementById("loading-screen");
+            if (loadingScreen) loadingScreen.style.display = "none";
+            const mainInterface = document.getElementById("main-interface");
+            if (mainInterface) mainInterface.classList.remove("hidden");
+            
+            console.log("🔄 Інтерфейс намальовано! Запуск фонового оновлення...");
+          }
+        }
+      } catch (error) {
+        console.warn("⚠️ Не вдалося завантажити seed-data.json, перехід до завантаження з API:", error);
+      }
+    }
+
+    console.log("🌐 Fetching latest data from Google Sheets...");
+    
+    const [freshSchedule, freshHistory, freshRegulations, freshPhoto] =
       await Promise.all([
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.SCHEDULE, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.HISTORY, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.REGULATIONS, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.PHOTO_ASSESSMENT, API_KEY),
       ]);
+      
+    scheduleData = freshSchedule;
+    historyData = freshHistory;
+    regulationsData = freshRegulations;
+    photoAssessmentData = freshPhoto;
 
     console.log(`📊 Raw Data Fetched:
       - Schedule: ${scheduleData?.length || 0} rows

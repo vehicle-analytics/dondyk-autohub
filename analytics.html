@@ -8,17 +8,16 @@
     <meta name="description" content="Розширена аналітика та звіти по автопарку">
     <meta name="color-scheme" content="light">
     <meta name="theme-color" content="#1e40af" media="(prefers-color-scheme: light)">
-    <link rel="manifest" href="manifest.json">
     <link rel="icon" href="Logo.png">
 
     <!-- Preconnect to CDNs -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <!-- Preload critical resources -->
-    <link rel="preload" href="Logo.png" as="image">
+    <link rel="preload" href="Logo.png" as="image" type="image/png" fetchpriority="high">
     <link rel="preload" href="styles.css" as="style">
 
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 
     <!-- Shared config - now in appConfig.js -->
     <!-- Modules are now imported in analytics.js -->
@@ -26,9 +25,9 @@
     <!-- Main app as a module -->
     <script type="module" src="analytics.js?v=20260330.1"></script>
 
-    <!-- Instant Loading Script (Stale-While-Revalidate) -->
+    <!-- Instant Loading Script: показуємо кешовані дані одразу без затримки -->
     <script>
-        if (localStorage.getItem("carAnalyticsData")) {
+        if (localStorage.getItem("carAnalyticsCacheTime")) {
             document.documentElement.classList.add('has-cache');
         }
     </script>
@@ -156,24 +155,7 @@
         }
     </style>
 
-    <!-- Instant Loading Script (Stale-While-Revalidate) -->
-    <script>
-        if (localStorage.getItem("carAnalyticsData")) {
-            document.documentElement.style.setProperty('--initial-loader-display', 'none');
-            document.documentElement.classList.add('has-cache');
-        }
-    </script>
-    <style>
-        html.has-cache #loading-screen {
-            display: none !important;
-        }
 
-        html.has-cache #main-interface {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-    </style>
 </head>
 
 <body>
@@ -474,17 +456,6 @@
                 }
             }
         });
-
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(registration => {
-                    console.log('✅ Service Worker registered:', registration.scope);
-                })
-                .catch(error => {
-                    console.log('❌ Service Worker registration failed:', error);
-                });
-        }
     </script>
 </body>
 

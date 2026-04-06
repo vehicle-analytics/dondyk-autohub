@@ -57,6 +57,30 @@ class ReportsApp {
                 this.generateReport(true).catch(err => console.error('Помилка генерації звіту:', err));
             }
         }, 300);
+
+        // Офлайн/онлайн
+        window.addEventListener('offline', () => {
+            console.log('📶 Пристрій перейшов в офлайн режим');
+            this.updateOfflineUI(true);
+        });
+
+        window.addEventListener('online', () => {
+            console.log('📶 Підключення до інтернету відновлено');
+            this.updateOfflineUI(false);
+            this.loadData();
+        });
+    }
+
+    updateOfflineUI(isOffline) {
+        const headerTitle = document.querySelector("#main-interface h1");
+        if (headerTitle) {
+            const offlineIndicator = document.getElementById("reports-offline-indicator");
+            if (isOffline && !offlineIndicator) {
+                 headerTitle.insertAdjacentHTML('afterend', '<span id="reports-offline-indicator" class="inline-block mt-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">ОФЛАЙН РЕЖИМ</span>');
+            } else if (!isOffline && offlineIndicator) {
+                 offlineIndicator.remove();
+            }
+        }
     }
 
     async loadData() {
@@ -87,6 +111,11 @@ class ReportsApp {
     }
 
     async fetchDataFromSheets() {
+        if (!navigator.onLine) {
+            console.warn("⚠️ Пристрій офлайн. Неможливо завантажити нові дані.");
+            throw new Error("Відсутнє з'єднання з інтернетом.");
+        }
+
         const { SPREADSHEET_ID, SHEETS, API_KEY } = CONFIG;
         const [scheduleData, historyData, regulationsData, photoAssessmentData] = await Promise.all([
             this.fetchSheetData(SPREADSHEET_ID, SHEETS.SCHEDULE, API_KEY),

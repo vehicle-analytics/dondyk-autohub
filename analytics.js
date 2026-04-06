@@ -1,3 +1,4 @@
+import AnalyticsWorker from './analyticsWorker.js?worker';
 import { CacheManager } from './cache/cacheManager.js';
 import { DataProcessor } from './data/dataProcessor.js';
 import { Formatters } from './utils/formatters.js';
@@ -30,7 +31,7 @@ class AnalyticsApp {
     this.MAINTENANCE_KEYWORDS = /то|грм|помпа|ремінь|ролик|фільтр|масло|олива|колодки|диски|амортизатор|опора|шарова|тяга|накінечник|зчеплення|стартер|генератор|акумулятор|свічки/i;
 
     // Ініціалізація Web Worker для фонової обробки даних
-    this.worker = new Worker('analyticsWorker.js', { type: 'module' });
+    this.worker = new AnalyticsWorker();
     
     // Створюємо дебаунс-версію applyFilters для уникнення надмірного навантаження
     this.debouncedApplyFilters = this.debounce(() => this.applyFilters(), 300);
@@ -105,7 +106,30 @@ class AnalyticsApp {
       });
     }
 
+    window.addEventListener('offline', () => {
+      console.log('📶 Пристрій перейшов в офлайн режим');
+      this.updateOfflineUI(true);
+    });
+
+    window.addEventListener('online', () => {
+      console.log('📶 Підключення до інтернету відновлено');
+      this.updateOfflineUI(false);
+      this.loadData(true);
+    });
+
     await this.loadData();
+  }
+
+  updateOfflineUI(isOffline) {
+    const headerDate = document.getElementById("date-range");
+    if (headerDate) {
+      const offlineIndicator = document.getElementById("analytics-offline-indicator");
+      if (isOffline && !offlineIndicator) {
+         headerDate.parentElement.insertAdjacentHTML('beforeend', '<span id="analytics-offline-indicator" class="inline-block mt-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">ОФЛАЙН РЕЖИМ</span>');
+      } else if (!isOffline && offlineIndicator) {
+         offlineIndicator.remove();
+      }
+    }
   }
 
   async waitForModules() {
@@ -187,18 +211,15 @@ class AnalyticsApp {
       this.updateLoadingProgress(20);
 
       const cached = await this.getCachedData();
-      const preBaked = window.preBakedData;
-      const initialData = cached || preBaked;
 
       // === МИТТЄВЕ ВІДОБРАЖЕННЯ (INSTANT VIEW) ===
-      if (initialData && !forceRefresh) {
-        this.appData = initialData;
-        this.maintenanceRegulations = initialData.regulations || [];
+      if (cached && !forceRefresh) {
+        this.appData = cached;
+        this.maintenanceRegulations = cached.regulations || [];
         
         // Якщо у нас є вже оброблені авто, показуємо все миттєво
-        if (initialData.processedCars && initialData.processedCars.length > 0) {
-          console.log("⚡ Instant View: Using cached processed data");
-          this.processedCars = initialData.processedCars;
+        if (cached.processedCars && cached.processedCars.length > 0) {
+          this.processedCars = cached.processedCars;
           this.updateLoadingProgress(80);
           this.populateFilters();
           this.applyFilters();
@@ -252,6 +273,54 @@ class AnalyticsApp {
     const config = CONFIG;
     const { SPREADSHEET_ID, SHEETS, API_KEY } = config;
 
+    if (!navigator.onLine) {
+      console.warn("⚠️ Пристрій офлайн. Використовується кеш PWA або IndexedDB.");
+      if (this.appData) {
+        return false;
+      } else {
+        throw new Error("Відсутнє з'єднання з інтернетом та немає кешованих даних.");
+      }
+    }
+
+    // === Спроба завантажити Pre-baked Data ===
+    let startRow = 1;
+    let usedSeedData = false;
+
+    if (!this.appData || !this.appData.records || this.appData.records.length === 0) {
+      try {
+        console.log("🌐 Спроба завантаження попередньо згенерованих даних (seed-data.json)...");
+        const seedResponse = await fetch('/seed-data.json');
+        if (seedResponse.ok) {
+          const seedData = await seedResponse.json();
+          if (seedData && seedData.scheduleData && seedData.historyData) {
+            console.log("📦 Знайдено seed-data.json! Завантажуємо миттєво.");
+            await this.processDataWorker(
+              seedData.scheduleData,
+              seedData.historyData,
+              seedData.regulationsData || [],
+              seedData.photoAssessmentData || []
+            );
+            usedSeedData = true;
+            
+            await this.processCars();
+            this.populateFilters();
+            this.applyFilters();
+            
+            const loadingScreen = document.getElementById("loading-screen");
+            if (loadingScreen) loadingScreen.classList.add("hidden");
+            const mainInterface = document.getElementById("main-interface");
+            if (mainInterface) mainInterface.classList.remove("hidden");
+          }
+        }
+      } catch (error) {
+        console.warn("⚠️ Не вдалося завантажити seed-data.json, перехід до завантаження з API:", error);
+      }
+    }
+
+    if (this.appData && this.appData.records && this.appData.records.length > 100) {
+      startRow = this.appData.records.length + 2; 
+    }
+
     // Оновлюємо тільки історію (HISTORY) інкрементально
     // ГРАФІК ОБСЛУГОВУВАННЯ, Регламент ТО та Оцінка авто фото - зазвичай невеликі, купуємо їх повністю
     const [scheduleData, regulationsData, photoAssessmentData] =
@@ -260,14 +329,6 @@ class AnalyticsApp {
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.REGULATIONS, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.PHOTO_ASSESSMENT, API_KEY),
       ]);
-
-    // Інкрементальне завантаження історії
-    let startRow = 1;
-    if (this.appData && this.appData.records && this.appData.records.length > 100) {
-      // Якщо у нас вже є дані, завантажуємо тільки нові рядки
-      // +1 для заголовка, +1 для наступного рядка
-      startRow = this.appData.records.length + 2; 
-    }
 
     const historyDataResponse = await this.fetchSheetData(
       SPREADSHEET_ID, 
@@ -683,12 +744,18 @@ class AnalyticsApp {
   }
 
   renderAll() {
-    this.renderMetrics();
-    this.renderExpenses();
-    // this.renderMileage();
-    this.renderRatings();
-    // this.renderBreakdown();
-    this.renderRequests();
+    // Поетапний рендер: кожна секція виконується в окремому кадрі анімації.
+    // Це дозволяє браузеру малювати між секціями і не «заморожує» UI на мобільних.
+    this.renderMetrics(); // Найважливіше — одразу (синхронно)
+
+    // Наступні секції — по одній через rAF, щоб не блокувати головний потік
+    Promise.resolve()
+      .then(() => new Promise(r => requestAnimationFrame(r)))
+      .then(() => this.renderExpenses())
+      .then(() => new Promise(r => requestAnimationFrame(r)))
+      .then(() => this.renderRatings())
+      .then(() => new Promise(r => requestAnimationFrame(r)))
+      .then(() => this.renderRequests());
   }
 
 

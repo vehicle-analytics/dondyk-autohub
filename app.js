@@ -1306,7 +1306,7 @@ class CarAnalyticsApp {
                                     }
                                 </style>
                                 <img src="Logo.png" alt="Dondyk AutoHub" class="logo-header mb-0.5" onerror="this.style.display='none';">
-                                <p class="text-blue-100 text-[10px] sm:text-xs whitespace-nowrap font-semibold text-center lg:text-left" style="line-height: 1.2;">AI-панель по обслуговуванню авто</p>
+                                <p class="text-blue-100 text-[10px] sm:text-xs whitespace-nowrap font-semibold text-center lg:text-left" style="line-height: 1.2;">Аналітична панель по обслуговуванню авто</p>
                             </div>
                             
                             <!-- Картки метрик -->

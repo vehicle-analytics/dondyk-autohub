@@ -11,6 +11,8 @@ export default defineConfig({
       injectRegister: "auto",
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,json,woff,woff2}"],
+        globIgnores: ["**/seed-data.json"], // Виключаємо гігантський прекеш з Service Worker!
+        maximumFileSizeToCacheInBytes: 5000000, 
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/sheets\.googleapis\.com\/.*/i,

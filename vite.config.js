@@ -5,6 +5,10 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [tailwindcss()],
   build: {
+    target: "esnext",          // Сучасний JS — менший bundle
+    sourcemap: false,           // Без source maps у продакшені = менший розмір
+    assetsInlineLimit: 0,       // Не інлайнити assets у JS (уникаємо роздування bundle)
+    chunkSizeWarningLimit: 1000, // Збільшений поріг попередження (у KB)
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
@@ -29,6 +33,7 @@ export default defineConfig({
       compress: {
         drop_console: true,
         drop_debugger: true,
+        pure_funcs: ["console.log", "console.info", "console.debug"],
       },
     },
     cssMinify: true,

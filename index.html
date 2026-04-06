@@ -15,30 +15,27 @@
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
 
     <!-- Preload critical resources -->
-    <link rel="preload" href="Logo.png" as="image">
+    <link rel="preload" href="Logo.png" as="image" type="image/png" fetchpriority="high">
     <link rel="preload" href="styles.css" as="style">
 
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Pre-baked Data Loader -->
+    <!-- Instant Loading Script: показуємо кешовані дані одразу без затримки -->
     <script>
-        (async function() {
-            try {
-                // Пріоритет: localStorage (найсвіжіше), потім запечений JSON
-                const localData = localStorage.getItem("carAnalyticsData");
-                if (localData) return; // Вже є в локальному сховищі
-
-                const response = await fetch('data/cached-data.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    window.preBakedData = data;
-                    console.log("⚡ Instant data loaded from pre-baked file");
-                }
-            } catch (e) {
-                console.warn("⚠️ Failed to load pre-baked data:", e);
-            }
-        })();
+        if (localStorage.getItem("carAnalyticsCacheTime")) {
+            document.documentElement.classList.add('has-cache');
+        }
     </script>
+    <style>
+        html.has-cache #loading-screen {
+            display: none !important;
+        }
+        html.has-cache #main-interface {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
 
     <!-- Main app as a module -->
     <script type="module" src="app.js"></script>
@@ -167,10 +164,20 @@
         </div>
 
         <div id="main-interface" class="hidden">
-            <!-- Skeleton loading state -->
+            <!-- Skeleton loading state: відображається поки JS завантажує кешовані дані -->
             <div id="skeleton-loader" class="skeleton-container">
-                <div class="skeleton-header"></div>
-                <div class="skeleton-filters"></div>
+                <!-- Шапка -->
+                <div class="skeleton-header" style="margin-bottom:10px;"></div>
+                <!-- Рядок статистики -->
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">
+                    <div class="skeleton-card" style="height:80px;border-radius:10px;"></div>
+                    <div class="skeleton-card" style="height:80px;border-radius:10px;animation-delay:0.08s;"></div>
+                    <div class="skeleton-card" style="height:80px;border-radius:10px;animation-delay:0.16s;"></div>
+                    <div class="skeleton-card" style="height:80px;border-radius:10px;animation-delay:0.24s;"></div>
+                </div>
+                <!-- Фільтри -->
+                <div class="skeleton-filters" style="margin-bottom:10px;"></div>
+                <!-- Сітка карток авто -->
                 <div class="skeleton-grid">
                     <div class="skeleton-card"></div>
                     <div class="skeleton-card"></div>
@@ -178,6 +185,12 @@
                     <div class="skeleton-card"></div>
                     <div class="skeleton-card"></div>
                     <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+                <!-- Підпис -->
+                <div style="text-align:center;margin-top:20px;color:rgba(255,255,255,0.4);font-size:12px;letter-spacing:0.5px;">
+                    ⏳ Підготовка даних...
                 </div>
             </div>
         </div>

@@ -1826,28 +1826,69 @@ class AnalyticsApp {
         if (isYearFilter) {
             // forecastStepValues тепер об'єкт { remainderOfCurrentYear, nextYears }
             const { remainderOfCurrentYear, nextYears } = forecastStepValues;
+            const currentYearStr = now.getFullYear().toString();
             
-            // Коригуємо значення прогнозу для ПОТОЧНОГО року: факт + залишок
-            forecastData[periods.length - 1] = actualExpenses[periods.length - 1] + remainderOfCurrentYear;
+            if (lastActualKey === currentYearStr) {
+                // Коригуємо значення прогнозу для ПОТОЧНОГО року: факт + залишок
+                forecastData[periods.length - 1] = actualExpenses[periods.length - 1] + remainderOfCurrentYear;
 
-            let lastYear = parseInt(lastActualKey);
-            for (let i = 0; i < nextYears.length; i++) {
-                lastYear++;
-                forecastLabels.push(lastYear.toString());
-                forecastData.push(nextYears[i]);
+                let lastYear = parseInt(lastActualKey);
+                for (let i = 0; i < nextYears.length; i++) {
+                    lastYear++;
+                    forecastLabels.push(lastYear.toString());
+                    forecastData.push(nextYears[i]);
+                }
+            } else {
+                forecastData[periods.length - 1] = null;
+                
+                let lastYear = parseInt(currentYearStr);
+                forecastLabels.push(currentYearStr);
+                forecastData.push(remainderOfCurrentYear);
+                
+                for (let i = 0; i < nextYears.length; i++) {
+                    lastYear++;
+                    forecastLabels.push(lastYear.toString());
+                    forecastData.push(nextYears[i]);
+                }
             }
         } else {
-            // Коригуємо значення прогнозу для ПОТОЧНОГО місяця: факт + залишок
-            const remainderOfMonth = this.getForecastRemainderForCurrentMonth();
-            forecastData[periods.length - 1] = actualExpenses[periods.length - 1] + remainderOfMonth;
+            const targetYear = parseInt(this.filters.selectedYear);
+            const currentYear = now.getFullYear();
 
-            // Для наступних місяців (починаючи з індексу 1)
-            let lastDate = new Date(lastActualKey + "-01");
-            for (let i = 1; i < forecastStepValues.length; i++) {
-                lastDate.setMonth(lastDate.getMonth() + 1);
-                const nextKey = `${lastDate.getFullYear()}-${String(lastDate.getMonth() + 1).padStart(2, "0")}`;
-                forecastLabels.push(nextKey);
-                forecastData.push(forecastStepValues[i]);
+            // Якщо вибраний рік не є поточним, не відображаємо прогноз від сьогодні
+            if (targetYear !== currentYear) {
+                forecastData[periods.length - 1] = null;
+            } else {
+                const currentMonthKey = `${currentYear}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+                
+                if (lastActualKey === currentMonthKey) {
+                    // Коригуємо значення прогнозу для ПОТОЧНОГО місяця: факт + залишок
+                    const remainderOfMonth = this.getForecastRemainderForCurrentMonth();
+                    forecastData[periods.length - 1] = actualExpenses[periods.length - 1] + remainderOfMonth;
+
+                    // Для наступних місяців
+                    let tempDate = new Date(lastActualKey + "-01");
+                    for (let i = 1; i < forecastStepValues.length; i++) {
+                        tempDate.setMonth(tempDate.getMonth() + 1);
+                        const nextKey = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, "0")}`;
+                        forecastLabels.push(nextKey);
+                        forecastData.push(forecastStepValues[i]);
+                    }
+                } else {
+                    // Якщо в поточному місяці ще немає витрат, відв'язуємо з'єднання
+                    forecastData[periods.length - 1] = null;
+                    
+                    let tempDate = new Date(currentMonthKey + "-01");
+                    forecastLabels.push(currentMonthKey);
+                    forecastData.push(forecastStepValues[0]); // Весь прогноз на місяць
+                    
+                    for (let i = 1; i < forecastStepValues.length; i++) {
+                        tempDate.setMonth(tempDate.getMonth() + 1);
+                        const nextKey = `${tempDate.getFullYear()}-${String(tempDate.getMonth() + 1).padStart(2, "0")}`;
+                        forecastLabels.push(nextKey);
+                        forecastData.push(forecastStepValues[i]);
+                    }
+                }
             }
         }
     }

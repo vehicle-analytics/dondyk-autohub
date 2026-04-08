@@ -43,19 +43,19 @@ export default defineConfig({
         lang: "uk",
         icons: [
           {
-            src: "icon-192.png",
+            src: "Logo.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "icon-512.png",
+            src: "Logo.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "icon-192-maskable.png",
+            src: "Logo.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "maskable"

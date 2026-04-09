@@ -31,8 +31,8 @@ export default defineConfig({
         ]
       },
       manifest: {
-        name: "Відстеження запчастин",
-        short_name: "Car Analytics",
+        name: "DondykAutoHub",
+        short_name: "DondykAutoHub",
         description: "Аналітична панель для відстеження обслуговування автомобілів",
         theme_color: "#1e40af",
         background_color: "#0f172a",
@@ -43,19 +43,19 @@ export default defineConfig({
         lang: "uk",
         icons: [
           {
-            src: "Logo.png",
+            src: "icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "Logo.png",
+            src: "icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any"
           },
           {
-            src: "Logo.png",
+            src: "icon-192-maskable.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "maskable"

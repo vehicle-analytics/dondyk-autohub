@@ -175,83 +175,6 @@ body {
     outline-offset: 2px;
 }
 
-/* ============================================
-   SKELETON LOADER — анімований стан завантаження
-   ============================================ */
-
-/* Базова анімація shimmer для темної теми */
-@keyframes skeleton-shimmer {
-    0% { background-position: -400px 0; }
-    100% { background-position: 400px 0; }
-}
-
-/* Загальний shimmer-елемент (темна тема) */
-.skeleton,
-.skeleton-header,
-.skeleton-filters,
-.skeleton-card {
-    background: linear-gradient(
-        90deg,
-        rgba(255,255,255,0.06) 0px,
-        rgba(255,255,255,0.12) 80px,
-        rgba(255,255,255,0.06) 160px
-    );
-    background-size: 400px 100%;
-    animation: skeleton-shimmer 1.4s ease-in-out infinite;
-    border-radius: 12px;
-}
-
-/* Стара анімація (сумісність) */
-@keyframes loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
-.skeleton-old {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
-}
-
-/* Контейнер skeleton */
-.skeleton-container {
-    padding: 12px 16px;
-    max-width: 1280px;
-    margin: 0 auto;
-}
-
-/* Skeleton шапки (header bar) */
-.skeleton-header {
-    height: 56px;
-    margin-bottom: 12px;
-    border-radius: 8px;
-}
-
-/* Skeleton фільтрів */
-.skeleton-filters {
-    height: 40px;
-    margin-bottom: 16px;
-    border-radius: 8px;
-    max-width: 600px;
-}
-
-/* Сітка skeleton-карток */
-.skeleton-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px;
-}
-
-/* Skeleton-картка авто */
-.skeleton-card {
-    height: 160px;
-    border-radius: 12px;
-    /* Невелика затримка для кожної картки — хвилеподібний ефект */
-}
-.skeleton-card:nth-child(2) { animation-delay: 0.1s; }
-.skeleton-card:nth-child(3) { animation-delay: 0.2s; }
-.skeleton-card:nth-child(4) { animation-delay: 0.3s; }
-.skeleton-card:nth-child(5) { animation-delay: 0.15s; }
-.skeleton-card:nth-child(6) { animation-delay: 0.25s; }
 
 
 /* Стилі для друку */
@@ -468,7 +391,7 @@ body {
 
 .system-node:hover {
     transform: translate(-50%, -50%) scale(1.1);
-    z-index: 10;
+    z-index: 100 !important;
 }
 
 .system-tooltip {
@@ -2087,54 +2010,7 @@ body {
     flex-shrink: 0;
 }
 
-/* Skeleton Loading */
-.skeleton-container {
-    padding: 20px;
-    max-width: 1400px;
-    margin: 0 auto;
-}
 
-.skeleton-header {
-    height: 80px;
-    background: linear-gradient(90deg, #1e3a8a 25%, #1e4a9a 50%, #1e3a8a 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 12px;
-    margin-bottom: 20px;
-}
-
-.skeleton-filters {
-    height: 60px;
-    background: linear-gradient(90deg, #1e3a8a 25%, #1e4a9a 50%, #1e3a8a 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 12px;
-    margin-bottom: 20px;
-}
-
-.skeleton-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
-}
-
-.skeleton-card {
-    height: 200px;
-    background: linear-gradient(90deg, #1e3a8a 25%, #1e4a9a 50%, #1e3a8a 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 12px;
-}
-
-@keyframes shimmer {
-    0% {
-        background-position: -200% 0;
-    }
-
-    100% {
-        background-position: 200% 0;
-    }
-}
 
 .accordion-item.urgent .accordion-status {
     background: #ef4444;

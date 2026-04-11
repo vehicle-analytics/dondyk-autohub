@@ -206,6 +206,20 @@ class AnalyticsApp {
     if (bar) bar.style.width = percent + "%";
   }
 
+  hideLoading() {
+    const loadingScreen = document.getElementById("loading-screen");
+    const mainInterface = document.getElementById("main-interface");
+    if (loadingScreen && !loadingScreen.classList.contains("hidden")) {
+      this.updateLoadingProgress(100);
+      setTimeout(() => {
+        loadingScreen.classList.add("hidden");
+        if (mainInterface) {
+          mainInterface.classList.remove("hidden");
+        }
+      }, 300);
+    }
+  }
+
   async loadData(forceRefresh = false) {
     try {
       this.updateLoadingProgress(20);
@@ -220,15 +234,9 @@ class AnalyticsApp {
         // Якщо у нас є вже оброблені авто, показуємо все миттєво
         if (cached.processedCars && cached.processedCars.length > 0) {
           this.processedCars = cached.processedCars;
-          this.updateLoadingProgress(80);
           this.populateFilters();
           this.applyFilters();
-          
-          // Ховаємо завантаження
-          const loadingScreen = document.getElementById("loading-screen");
-          if (loadingScreen) loadingScreen.classList.add("hidden");
-          const mainInterface = document.getElementById("main-interface");
-          if (mainInterface) mainInterface.classList.remove("hidden");
+          this.hideLoading();
         }
       }
 
@@ -252,12 +260,7 @@ class AnalyticsApp {
         this.applyFilters();
       }
 
-      this.updateLoadingProgress(100);
-      
-      const loadingScreen = document.getElementById("loading-screen");
-      if (loadingScreen) loadingScreen.classList.add("hidden");
-      const mainInterface = document.getElementById("main-interface");
-      if (mainInterface) mainInterface.classList.remove("hidden");
+      this.hideLoading();
       
     } catch (error) {
       console.error("❌ Помилка завантаження даних:", error);
@@ -306,10 +309,7 @@ class AnalyticsApp {
             this.populateFilters();
             this.applyFilters();
             
-            const loadingScreen = document.getElementById("loading-screen");
-            if (loadingScreen) loadingScreen.classList.add("hidden");
-            const mainInterface = document.getElementById("main-interface");
-            if (mainInterface) mainInterface.classList.remove("hidden");
+            this.hideLoading();
           }
         }
       } catch (error) {

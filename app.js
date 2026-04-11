@@ -234,6 +234,23 @@ class CarAnalyticsApp {
     }
   }
 
+  hideLoading() {
+    const loadingScreen = document.getElementById("loading-screen");
+    const mainInterface = document.getElementById("main-interface");
+    if (loadingScreen && !loadingScreen.classList.contains("hidden")) {
+      this.updateLoadingProgress(100);
+      setTimeout(() => {
+        loadingScreen.classList.add("hidden");
+        if (mainInterface) {
+          mainInterface.classList.remove("hidden");
+          mainInterface.style.display = "block";
+          mainInterface.style.visibility = "visible";
+          mainInterface.style.opacity = "1";
+        }
+      }, 300);
+    }
+  }
+
   async loadData(forceRefresh = false) {
     try {
       const cached = await CacheManager.getCachedData();
@@ -303,6 +320,7 @@ class CarAnalyticsApp {
         }, 50);
       } else {
         await this.fetchDataFromAPI();
+        this.render();
       }
     } catch (error) {
       console.error("❌ Помилка завантаження даних:", error);
@@ -362,12 +380,8 @@ class CarAnalyticsApp {
             this.processData(scheduleData, historyData, regulationsData, photoAssessmentData);
             this.render();
             
-            const loadingScreen = document.getElementById("loading-screen");
-            if (loadingScreen) loadingScreen.style.display = "none";
-            const mainInterface = document.getElementById("main-interface");
-            if (mainInterface) mainInterface.classList.remove("hidden");
-            
-            console.log("🔄 Інтерфейс намальовано! Запуск фонового оновлення...");
+            // Інтерфейс буде показаний автоматично всередині renderCarList після завершення роботи Worker
+            console.log("🔄 Дані завантажено з seed-data.js. Очікуємо рендерінг...");
           }
         }
       } catch (error) {
@@ -583,8 +597,6 @@ class CarAnalyticsApp {
         `;
 
     document.getElementById("main-interface").innerHTML = html;
-
-    document.getElementById("main-interface").innerHTML = html;
   }
 
   renderCarList() {
@@ -608,12 +620,7 @@ class CarAnalyticsApp {
       const mainInterface = document.getElementById("main-interface");
       if (mainInterface) {
         mainInterface.innerHTML = html;
-
-        // Ховаємо екран завантаження
-        const loadingScreen = document.getElementById("loading-screen");
-        if (loadingScreen) loadingScreen.classList.add("hidden");
-        mainInterface.classList.remove("hidden");
-
+        this.hideLoading();
         this.setupEventHandlersAfterRender(mainInterface);
       }
       return;
@@ -662,14 +669,7 @@ class CarAnalyticsApp {
       const mainInterface = document.getElementById("main-interface");
       if (mainInterface) {
         mainInterface.innerHTML = html;
-        // Забезпечуємо, що контент видимий
-        const loadingScreen = document.getElementById("loading-screen");
-        if (loadingScreen) loadingScreen.classList.add("hidden");
-
-        mainInterface.style.display = "block";
-        mainInterface.style.visibility = "visible";
-        mainInterface.style.opacity = "1";
-        mainInterface.classList.remove("hidden");
+        this.hideLoading();
 
         // Прокручуємо до верху сторінки для повного відображення
         requestAnimationFrame(() => {
@@ -690,7 +690,6 @@ class CarAnalyticsApp {
 
   setupEventHandlersAfterRender(mainInterface) {
     const appInstance = this;
-    this.updateLoadingProgress(100);
 
     // Застосовуємо фільтр пошуку після рендерингу (DOM-only)
     if (this.state.searchTerm) {
@@ -878,10 +877,7 @@ class CarAnalyticsApp {
       const mainInterface = document.getElementById("main-interface");
       if (mainInterface) {
         mainInterface.innerHTML = html;
-
-        const loadingScreen = document.getElementById("loading-screen");
-        if (loadingScreen) loadingScreen.classList.add("hidden");
-        mainInterface.classList.remove("hidden");
+        this.hideLoading();
 
 
         // Ініціалізуємо компактний режим шапки при прокрутці
@@ -4833,7 +4829,7 @@ class CarAnalyticsApp {
           );
 
           return `
-                            <div class="group" style="position: absolute; left: ${system.x}%; top: ${system.y}%; transform: translate(-50%, -50%); z-index: 10;">
+                            <div class="group system-node" style="position: absolute; left: ${system.x}%; top: ${system.y}%; transform: translate(-50%, -50%); z-index: 10;">
                                 <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
                                     
                                     <!-- Назва системи (над іконкою) -->

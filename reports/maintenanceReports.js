@@ -196,7 +196,7 @@ export class MaintenanceReports {
     try {
       // Спочатку перевіряємо кеш
       if (CacheManager) {
-        const cached = CacheManager.getCachedData();
+        const cached = await CacheManager.getCachedData();
         if (
           cached &&
           cached.carsInfo &&
@@ -447,50 +447,29 @@ export class MaintenanceReports {
       }
 
       if (!part) {
-        skippedNoPart++;
-        if (skippedNoPart === 1 && cars[0] === car) {
-          // Детальна діагностика для першого авто
-          const availableParts = car.parts ? Object.keys(car.parts) : [];
-          const partsWithValues = availableParts.filter((key) => {
-            const val = car.parts[key];
-            return val !== null && val !== undefined && typeof val === "object";
-          });
-
-          // Додаткова діагностика - перевіряємо перші кілька значень
-          const sampleValues = availableParts.slice(0, 5).map((key) => {
-            const val = car.parts[key];
-            return {
-              key: key,
-              value: val,
-              type: typeof val,
-              isNull: val === null,
-              isUndefined: val === undefined,
-              isObject: typeof val === "object" && val !== null,
-            };
-          });
-
-          console.warn("⚠️ Перше авто без запчастини:", {
-            license: car.license,
-            searchedPart: partName,
-            searchedNormalized: partNameNormalized,
-            availableParts: availableParts.slice(0, 10),
-            partsWithValues: partsWithValues.slice(0, 10),
-            totalParts: availableParts.length,
-            partsWithValidValues: partsWithValues.length,
-            sampleValues: sampleValues,
-          });
-
-          // Якщо всі значення null/undefined, це проблема з обробкою даних
-          if (partsWithValues.length === 0 && availableParts.length > 0) {
-            console.error(
-              "❌ КРИТИЧНА ПОМИЛКА: Всі значення запчастин є null або undefined! Це означає проблему з обробкою даних.",
-            );
-            console.error(
-              "Перевірте, чи правильно обробляються дані в CarProcessor.processCarData",
-            );
+        // Якщо запчастину не знайдено в історії, створюємо об'єкт за замовчуванням
+        // Це важливо для відображення нових авто, які ще не мали обслуговування
+        part = {
+          date: null,
+          mileage: 0,
+          currentMileage: car.currentMileage || 0,
+          mileageDiff: car.currentMileage || 0, // З моменту 0 км
+          daysDiff: 0,
+          timeDiff: "Ніколи"
+        };
+        
+        // Спробуємо розрахувати приблизну кількість днів з моменту випуску авто
+        if (car.year) {
+          const carYear = parseInt(car.year);
+          if (!isNaN(carYear)) {
+            const startOfYear = new Date(carYear, 0, 1);
+            const now = new Date();
+            const diffTime = Math.abs(now - startOfYear);
+            part.daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           }
         }
-        continue;
+        
+        actualPartName = partName;
       }
 
       // actualPartName вже встановлено вище під час пошуку запчастини

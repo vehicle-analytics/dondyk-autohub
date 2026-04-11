@@ -84,7 +84,7 @@ class ReportsApp {
     }
 
     async loadData() {
-        const cached = CacheManager.getCachedData();
+        const cached = await CacheManager.getCachedData();
         if (cached && cached.carsInfo && Object.keys(cached.carsInfo).length > 0) {
             this.appData = cached;
             this.maintenanceRegulations = cached.regulations || [];
@@ -138,7 +138,7 @@ class ReportsApp {
             (license, model, year, partName) =>
                 CarProcessor.findRegulationForCar(license, model, year, partName, this.maintenanceRegulations)
         );
-        CacheManager.cacheData({ ...this.appData, processedCars: this.processedCars });
+        await CacheManager.cacheData({ ...this.appData, processedCars: this.processedCars });
     }
 
     async fetchSheetData(spreadsheetId, sheetName, apiKey) {

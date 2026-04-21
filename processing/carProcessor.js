@@ -767,9 +767,18 @@ export class CarProcessor {
     }
   }
   /**
-   * Перевіряє, чи є авто з ланцюговим приводом ГРМ
+   * Відображає, чи є авто ланцюговим (для ГРМ)
+   * Можна перевіряти за моделлю або за регламентом
    */
-  static isChainDriveGRM(model) {
+  static isChainDriveGRM(model, regulation = null) {
+    // 1. Перевірка за регламентом (пріоритетно)
+    if (regulation) {
+      if (regulation.normalValue === "chain" || regulation.regulationValue === "chain") {
+        return true;
+      }
+    }
+
+    // 2. Фолбек на жорстко прописаний список моделей
     if (!model) return false;
     const modelLower = model.toLowerCase();
     const chainDriveModels = [
@@ -784,7 +793,7 @@ export class CarProcessor {
   /**
    * Визначає, чи повинна запчастина відображатися для конкретного авто
    */
-  static shouldShowPartForCar(car, partName, isReport = false) {
+  static shouldShowPartForCar(car, partName, isReport = false, regulation = null) {
     if (!car) return false;
     
     const carYear = parseInt(car.year) || 0;
@@ -808,7 +817,7 @@ export class CarProcessor {
 
     // 3. ГРМ (для ланцюгових авто ГРМ "незастосовується" ТІЛЬКИ у звітах для планування замін)
     if (partName.includes("ГРМ")) {
-      if (isReport && this.isChainDriveGRM(car.model)) return false;
+      if (isReport && this.isChainDriveGRM(car.model, regulation)) return false;
     }
 
     return true;

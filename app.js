@@ -3489,17 +3489,16 @@ class CarAnalyticsApp {
     const part = car.parts[partName];
     const isActive = this.state.selectedHistoryPartFilter === partName;
 
-    // Перевірка для ГРМ: чи це авто з ланцюговим приводом ГРМ
-    const chainDriveModels = [
-      "mercedes-benz sprinter",
-      "iveco daily 65c15",
-      "isuzu nqr 71r",
-      "hyundai accent",
-    ];
-    const isChainDriveGRM =
-      partName === "ГРМ (ролики+ремінь) ⚙️" &&
-      car.model &&
-      chainDriveModels.some((model) => car.model.toLowerCase().includes(model));
+    // Отримуємо регламент для перевірки динамічних ланцюгів
+    const regulation = this.findRegulationForCar(
+      car.license,
+      car.model,
+      car.year,
+      partName,
+    );
+
+    // Перевірка для ГРМ: чи це авто з ланцюговим приводом ГРМ (враховуючи регламент)
+    const isChainDriveGRM = partName.includes("ГРМ") && CarProcessor.isChainDriveGRM(car.model, regulation);
 
     // Визначаємо стилі залежно від статусу
     let borderClass, bgClass, progressColor;
@@ -3575,12 +3574,7 @@ class CarAnalyticsApp {
     let nextServiceText = "";
 
     if (part && !isChainDriveGRM) {
-      const regulation = this.findRegulationForCar(
-        car.license,
-        car.model,
-        car.year,
-        partName,
-      );
+      // Регламент вже знайдено вище
 
       if (
         mileageBasedParts.includes(partName) &&
@@ -3653,12 +3647,7 @@ class CarAnalyticsApp {
         }
       } else if (dateBasedParts.includes(partName)) {
         // Для робіт з датами розраховуємо залишок пробігу до наступної перевірки
-        const regulation = this.findRegulationForCar(
-          car.license,
-          car.model,
-          car.year,
-          partName,
-        );
+        // Регламент вже знайдено вище
 
         // Визначаємо нормативне значення (місяці)
         let normalValue = 6; // За замовчуванням 6 місяців
@@ -3782,13 +3771,7 @@ class CarAnalyticsApp {
       else if (part.status === "good") cardStatusClass = "card-good";
     }
 
-    // Перевіряємо, чи в регламенті стовпець H (Регламент) = 0
-    const regulation = this.findRegulationForCar(
-      car.license,
-      car.model,
-      car.year,
-      partName,
-    );
+    // Регламент вже знайдено вище
 
     // Перевіряємо, чи regulationValue дорівнює 0 (може бути число 0 або null/undefined для порожнього)
     const hasZeroRegulation =

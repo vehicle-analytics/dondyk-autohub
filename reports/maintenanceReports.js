@@ -475,7 +475,7 @@ export class MaintenanceReports {
 
       // НОВИНКА: Перевіряємо, чи запчастина взагалі застосовується до цього авто
       // (наприклад, ГРМ для Спрінтера не показуємо, бо там ланцюг)
-      if (!CarProcessor.shouldShowPartForCar(car, actualPartName, true)) {
+      if (!CarProcessor.shouldShowPartForCar(car, actualPartName, true, regulation)) {
         continue;
       }
 

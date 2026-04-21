@@ -85,8 +85,10 @@ export class MaintenanceForecast {
 
         Object.values(forecastData.byMonth).forEach((monthData) => {
           monthData.parts.forEach((need) => {
+            // Отримуємо регламент для перевірки динамічних ланцюгів
+            const reg = findRegulationForCar(car.license, car.model, car.year, need.partName, maintenanceRegulations);
             // Пропускаємо запчастину, якщо вона не застосовується до цього авто (у контексті прогнозу/звіту)
-            if (!CarProcessor.shouldShowPartForCar(car, need.partName, true)) {
+            if (!CarProcessor.shouldShowPartForCar(car, need.partName, true, reg)) {
               return;
             }
             let urgency = "forecasted";
@@ -238,8 +240,10 @@ export class MaintenanceForecast {
         const part = car.parts[partName];
         if (!part) continue;
 
+        // Отримуємо регламент для перевірки динамічних ланцюгів
+        const reg = findRegulationForCar(car.license, car.model, car.year, partName, maintenanceRegulations);
         // Пропускаємо запчастину, якщо вона не застосовується до цього авто (у контексті прогнозу/звіту)
-        if (!CarProcessor.shouldShowPartForCar(car, partName, true)) {
+        if (!CarProcessor.shouldShowPartForCar(car, partName, true, reg)) {
           continue;
         }
 
@@ -413,8 +417,10 @@ export class MaintenanceForecast {
       }
     }
 
+    // Отримуємо регламент для перевірки динамічних ланцюгів
+    const spReg = findRegulationForCar(car.license, car.model, car.year, "Свічки запалювання 🔥", maintenanceRegulations);
     // Додаємо свічки запалювання, якщо вони застосовуються до цього авто (прогноз/звіт)
-    if (CarProcessor.shouldShowPartForCar(car, "Свічки запалювання 🔥", true)) {
+    if (CarProcessor.shouldShowPartForCar(car, "Свічки запалювання 🔥", true, spReg)) {
       // Перевіряємо, чи вже є свічки в прогнозі
       const hasSparkPlugsInForecast = forecasts.some(
         (f) => f.part === "Свічки запалювання 🔥",

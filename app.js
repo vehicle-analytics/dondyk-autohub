@@ -3097,7 +3097,7 @@ class CarAnalyticsApp {
                                 <div class="min-w-0 flex-1">
                                     <div class="vehicle-detail-plate">${car.license}</div>
                                     <div class="vehicle-detail-model">${car.model || "Немає моделі"}${car.year ? " • " + car.year + " рік" : ""}${car.city ? " • " + car.city : ""}</div>
-                                    ${car.vin ? `<div class="vehicle-detail-vin" style="font-size: 12px; color: #94a3b8; margin-top: 2px;">VIN: ${car.vin}</div>` : ""}
+                                    ${car.vin ? `<div class="vehicle-detail-vin" style="font-size: 12px; color: #94a3b8; margin-top: 2px;">VIN: ${car.vin} ${car.engineVolume ? ' двигун ' + car.engineVolume + (car.engineVolume.includes('л') ? '' : 'л') + '.,' : ''}${car.bodyType ? ' ' + car.bodyType + ',' : ''}${car.wheelsCount ? ' к-сть колес ' + car.wheelsCount + 'шт' : ''}</div>` : ""}
                                 </div>
                                             </div>
                             <div class="vehicle-detail-stats-horizontal">

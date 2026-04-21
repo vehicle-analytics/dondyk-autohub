@@ -85,8 +85,8 @@ export class MaintenanceForecast {
 
         Object.values(forecastData.byMonth).forEach((monthData) => {
           monthData.parts.forEach((need) => {
-            // Пропускаємо запчастину, якщо вона не застосовується до цього авто
-            if (!CarProcessor.shouldShowPartForCar(car, need.partName)) {
+            // Пропускаємо запчастину, якщо вона не застосовується до цього авто (у контексті прогнозу/звіту)
+            if (!CarProcessor.shouldShowPartForCar(car, need.partName, true)) {
               return;
             }
             let urgency = "forecasted";
@@ -238,8 +238,8 @@ export class MaintenanceForecast {
         const part = car.parts[partName];
         if (!part) continue;
 
-        // Пропускаємо запчастину, якщо вона не застосовується до цього авто
-        if (!CarProcessor.shouldShowPartForCar(car, partName)) {
+        // Пропускаємо запчастину, якщо вона не застосовується до цього авто (у контексті прогнозу/звіту)
+        if (!CarProcessor.shouldShowPartForCar(car, partName, true)) {
           continue;
         }
 
@@ -413,8 +413,8 @@ export class MaintenanceForecast {
       }
     }
 
-    // Додаємо свічки запалювання, якщо вони застосовуються до цього авто (тільки якщо їх ще немає в прогнозі)
-    if (CarProcessor.shouldShowPartForCar(car, "Свічки запалювання 🔥")) {
+    // Додаємо свічки запалювання, якщо вони застосовуються до цього авто (прогноз/звіт)
+    if (CarProcessor.shouldShowPartForCar(car, "Свічки запалювання 🔥", true)) {
       // Перевіряємо, чи вже є свічки в прогнозі
       const hasSparkPlugsInForecast = forecasts.some(
         (f) => f.part === "Свічки запалювання 🔥",

@@ -56,17 +56,40 @@ export class DataProcessor {
     // Рядок 3 (індекс 2): початок даних авто
     for (let i = 2; i < scheduleData.length; i++) {
       const row = scheduleData[i];
-      if (row.length < 5) continue;
+      if (!row || row.length < 3) continue;
 
       const license = String(row[CONSTANTS.SCHEDULE_COL_LICENSE] || "").trim();
-      if (license) {
+      
+      // Skip empty or summary rows
+      if (license && license.length >= 7 && !license.includes('Всього')) {
         const city = String(row[CONSTANTS.SCHEDULE_COL_CITY] || "").trim();
+        const vin = String(row[CONSTANTS.SCHEDULE_COL_VIN] || "").trim();
+        const engineVolume = String(row[CONSTANTS.SCHEDULE_COL_ENGINE_VOLUME] || "").trim();
+        const bodyType = String(row[CONSTANTS.SCHEDULE_COL_BODY_TYPE] || "").trim();
+        const wheelsCount = String(row[CONSTANTS.SCHEDULE_COL_WHEELS] || "").trim();
+
+        // Debug logging for the problematic vehicle
+        if (license === 'AA 1049 OO' || license.replace(/\s+/g, '') === 'AA1049OO') {
+          console.log(`[DEBUG] Extraction for ${license}:`, {
+            rowIndex: i + 1,
+            vin: vin,
+            engineVolume: engineVolume,
+            bodyType: bodyType,
+            wheelsCount: wheelsCount,
+            rowLength: row.length,
+            rawRow: row
+          });
+        }
+
         carsInfo[license] = {
           city: city,
           license: license,
           model: String(row[CONSTANTS.SCHEDULE_COL_MODEL] || "").trim(),
           year: String(row[CONSTANTS.SCHEDULE_COL_YEAR] || "").trim(),
-          vin: String(row[CONSTANTS.SCHEDULE_COL_VIN] || "").trim(),
+          vin: vin,
+          engineVolume: engineVolume,
+          bodyType: bodyType,
+          wheelsCount: wheelsCount,
         };
         carCities[license] = city;
       }

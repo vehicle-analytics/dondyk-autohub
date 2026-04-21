@@ -34,6 +34,9 @@ export class CarProcessor {
         model: carInfo.model,
         year: carInfo.year,
         vin: carInfo.vin,
+        engineVolume: carInfo.engineVolume,
+        bodyType: carInfo.bodyType,
+        wheelsCount: carInfo.wheelsCount,
         currentMileage: currentMileages[license] || 0,
         parts: {},
         history: [],
@@ -781,7 +784,7 @@ export class CarProcessor {
   /**
    * Визначає, чи повинна запчастина відображатися для конкретного авто
    */
-  static shouldShowPartForCar(car, partName) {
+  static shouldShowPartForCar(car, partName, isReport = false) {
     if (!car) return false;
     
     const carYear = parseInt(car.year) || 0;
@@ -803,9 +806,9 @@ export class CarProcessor {
       if (!isGasolineModel) return false;
     }
 
-    // 3. ГРМ (для ланцюгових авто ГРМ "незастосовується" у звітах)
+    // 3. ГРМ (для ланцюгових авто ГРМ "незастосовується" ТІЛЬКИ у звітах для планування замін)
     if (partName.includes("ГРМ")) {
-      if (this.isChainDriveGRM(car.model)) return false;
+      if (isReport && this.isChainDriveGRM(car.model)) return false;
     }
 
     return true;

@@ -763,4 +763,51 @@ export class CarProcessor {
         return "good";
     }
   }
+  /**
+   * Перевіряє, чи є авто з ланцюговим приводом ГРМ
+   */
+  static isChainDriveGRM(model) {
+    if (!model) return false;
+    const modelLower = model.toLowerCase();
+    const chainDriveModels = [
+      "mercedes-benz sprinter",
+      "iveco daily 65c15",
+      "isuzu nqr 71r",
+      "hyundai accent",
+    ];
+    return chainDriveModels.some((m) => modelLower.includes(m));
+  }
+
+  /**
+   * Визначає, чи повинна запчастина відображатися для конкретного авто
+   */
+  static shouldShowPartForCar(car, partName) {
+    if (!car) return false;
+    
+    const carYear = parseInt(car.year) || 0;
+    const carModel = (car.model || "").toUpperCase();
+
+    // 1. Прожиг сажового фільтру
+    if (partName.includes("Прожиг сажового фільтру")) {
+      const shouldHide = 
+        carYear < 2010 ||
+        carModel.includes("FIAT TIPO") ||
+        carModel.includes("PEUGEOT 301") ||
+        carModel.includes("HYUNDAI ACCENT");
+      if (shouldHide) return false;
+    }
+
+    // 2. Свічки запалювання
+    if (partName.includes("Свічки запалювання")) {
+      const isGasolineModel = /PEUGEOT|HYUNDAI|FIAT/.test(carModel);
+      if (!isGasolineModel) return false;
+    }
+
+    // 3. ГРМ (для ланцюгових авто ГРМ "незастосовується" у звітах)
+    if (partName.includes("ГРМ")) {
+      if (this.isChainDriveGRM(car.model)) return false;
+    }
+
+    return true;
+  }
 }

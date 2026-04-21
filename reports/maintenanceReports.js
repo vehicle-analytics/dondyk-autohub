@@ -89,17 +89,7 @@ export class MaintenanceReports {
         (partName === "Помпа 💧" || partName === "Обвідний ремінь+ролики 🔧") &&
         !hasIndividualRegulation
       ) {
-        const chainDriveModels = [
-          "mercedes-benz sprinter",
-          "iveco daily 65c15",
-          "isuzu nqr 71r",
-          "hyundai accent",
-        ];
-        const isChainDriveGRM =
-          car.model &&
-          chainDriveModels.some((model) =>
-            car.model.toLowerCase().includes(model),
-          );
+        const isChainDriveGRM = CarProcessor.isChainDriveGRM(car.model);
 
         if (!isChainDriveGRM) {
           // Знаходимо регламент ГРМ
@@ -482,6 +472,12 @@ export class MaintenanceReports {
         actualPartName,
         maintenanceRegulations,
       );
+
+      // НОВИНКА: Перевіряємо, чи запчастина взагалі застосовується до цього авто
+      // (наприклад, ГРМ для Спрінтера не показуємо, бо там ланцюг)
+      if (!CarProcessor.shouldShowPartForCar(car, actualPartName)) {
+        continue;
+      }
 
       if (!regulation) {
         skippedNoRegulation++;

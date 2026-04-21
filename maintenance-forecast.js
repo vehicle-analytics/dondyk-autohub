@@ -1,9 +1,5 @@
-/**
- * ⏰ Модуль прогнозу наступного обслуговування
- * Розраховує приблизні терміни заміни запчастин
- */
 import { Formatters } from './utils/formatters.js';
-
+import { CarProcessor } from './processing/carProcessor.js';
 
 export class MaintenanceForecast {
   constructor() {
@@ -54,19 +50,6 @@ export class MaintenanceForecast {
     return null;
   }
 
-  isCarWithSparkPlugs(model) {
-    if (!model) return false;
-    const modelUpper = model.toUpperCase();
-    return (
-      modelUpper.includes("PEUGEOT") ||
-      modelUpper.includes("HYUNDAI") ||
-      modelUpper.includes("FIAT") ||
-      modelUpper.includes("301") ||
-      modelUpper.includes("ACCENT") ||
-      modelUpper.includes("TIPO")
-    );
-  }
-
   /**
    * Розраховує прогноз наступного обслуговування для конкретного автомобіля
    * @param {Object} car - Об'єкт автомобіля
@@ -86,14 +69,7 @@ export class MaintenanceForecast {
     const forecasts = [];
     const now = new Date();
 
-    // Перевіряємо чи потрібно приховати "Прожиг сажового фільтру"
-    const carYear = parseInt(car.year) || 0;
-    const carModel = (car.model || "").toUpperCase();
-    const shouldHideSootBurn =
-      carYear < 2010 ||
-      carModel.includes("FIAT TIPO") ||
-      carModel.includes("PEUGEOT 301") ||
-      carModel.includes("HYUNDAI ACCENT");
+    // Використовуємо новий алгоритм якщо доступний
 
     // Використовуємо новий алгоритм якщо доступний
     let useNewAlgorithm = false;
@@ -109,11 +85,8 @@ export class MaintenanceForecast {
 
         Object.values(forecastData.byMonth).forEach((monthData) => {
           monthData.parts.forEach((need) => {
-            // Пропускаємо "Прожиг сажового фільтру" якщо потрібно
-            if (
-              shouldHideSootBurn &&
-              need.partName === "Прожиг сажового фільтру 🔥"
-            ) {
+            // Пропускаємо запчастину, якщо вона не застосовується до цього авто
+            if (!CarProcessor.shouldShowPartForCar(car, need.partName)) {
               return;
             }
             let urgency = "forecasted";
@@ -265,8 +238,8 @@ export class MaintenanceForecast {
         const part = car.parts[partName];
         if (!part) continue;
 
-        // Пропускаємо "Прожиг сажового фільтру" якщо потрібно
-        if (shouldHideSootBurn && partName === "Прожиг сажового фільтру 🔥") {
+        // Пропускаємо запчастину, якщо вона не застосовується до цього авто
+        if (!CarProcessor.shouldShowPartForCar(car, partName)) {
           continue;
         }
 
@@ -440,8 +413,8 @@ export class MaintenanceForecast {
       }
     }
 
-    // Додаємо свічки запалювання для Peugeot/Hyundai/Fiat (тільки якщо їх ще немає в прогнозі)
-    if (this.isCarWithSparkPlugs(car.model)) {
+    // Додаємо свічки запалювання, якщо вони застосовуються до цього авто (тільки якщо їх ще немає в прогнозі)
+    if (CarProcessor.shouldShowPartForCar(car, "Свічки запалювання 🔥")) {
       // Перевіряємо, чи вже є свічки в прогнозі
       const hasSparkPlugsInForecast = forecasts.some(
         (f) => f.part === "Свічки запалювання 🔥",

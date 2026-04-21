@@ -3272,28 +3272,10 @@ class CarAnalyticsApp {
   }
 
   generateCarPartsHTML(car, partNames) {
-    // Фільтруємо "Прожиг сажового фільтру" для авто року < 2010 та Fiat Tipo, Peugeot 301, Hyundai Accent
-    const carYear = parseInt(car.year) || 0;
-    const carModel = (car.model || "").toUpperCase();
-    const shouldHideSootBurn =
-      carYear < 2010 ||
-      carModel.includes("FIAT TIPO") ||
-      carModel.includes("PEUGEOT 301") ||
-      carModel.includes("HYUNDAI ACCENT");
-
-    // Фільтруємо "Свічки запалювання" - показуємо тільки для Peugeot, Hyundai, Fiat
-    const shouldShowSparkPlugs = /PEUGEOT|HYUNDAI|FIAT/.test(carModel);
-
-    let filteredPartNames = shouldHideSootBurn
-      ? partNames.filter((name) => name !== "Прожиг сажового фільтру 🔥")
-      : partNames;
-
-    // Приховуємо свічки запалювання, якщо авто не Peugeot, Hyundai, Fiat
-    if (!shouldShowSparkPlugs) {
-      filteredPartNames = filteredPartNames.filter(
-        (name) => name !== "Свічки запалювання 🔥",
-      );
-    }
+    // Використовуємо централізовану логіку CarProcessor для фільтрації запчастин
+    let filteredPartNames = partNames.filter((name) => 
+      CarProcessor.shouldShowPartForCar(car, name)
+    );
 
     // Визначаємо групи систем згідно з інтерактивною картою
     const systemsGroups = [

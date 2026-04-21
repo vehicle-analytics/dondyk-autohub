@@ -333,14 +333,85 @@ class ReportsApp {
             { header: 'Орієнтовна дата', key: 'estDate', width: 15 },
             { header: 'Статус', key: 'status', width: 15 }
         ];
-        this.currentReportData.forEach((item, index) => worksheet.addRow({
-            id: index + 1, city: item.city, license: item.license, model: item.model, mileage: item.currentMileage, lastDate: item.lastServiceDate, lastMileage: item.lastServiceMileage, remaining: item.remainingText, estDate: item.estimatedNextServiceDateText, status: item.statusText
-        }));
+
+        // Стилізація заголовка
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        headerRow.eachCell(cell => {
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE9ECEF' }
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        this.currentReportData.forEach((item, index) => {
+            const row = worksheet.addRow({
+                id: index + 1, 
+                city: item.city, 
+                license: item.license, 
+                model: item.model, 
+                mileage: item.currentMileage, 
+                lastDate: item.lastServiceDate, 
+                lastMileage: item.lastServiceMileage, 
+                remaining: item.remainingText, 
+                estDate: item.estimatedNextServiceDateText, 
+                status: item.statusText
+            });
+
+            // Центрування всіх комірок у рядку
+            row.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            // Визначення кольорів на основі статусу (tailwind-like colors)
+            let bgColor = 'FFFFFFFF';
+            let textColor = 'FF000000';
+
+            if (item.status === 'urgent') {
+                bgColor = 'FFFEE2E2'; // Light Red (bg-red-100)
+                textColor = 'FF991B1B'; // Dark Red (text-red-800)
+            } else if (item.status === 'warning') {
+                bgColor = 'FFFEF9C3'; // Light Yellow (bg-yellow-100)
+                textColor = 'FF854D0E'; // Dark Yellow (text-yellow-800)
+            } else if (item.status === 'normal' || item.status === 'good') {
+                bgColor = 'FFDCFCE7'; // Light Green (bg-green-100)
+                textColor = 'FF166534'; // Dark Green (text-green-800)
+            }
+
+            // Стилізація комірки статусу
+            const statusCell = row.getCell('status');
+            statusCell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: bgColor }
+            };
+            statusCell.font = {
+                color: { argb: textColor },
+                bold: true
+            };
+
+            // Додаємо рамки для всієї таблиці
+            row.eachCell(cell => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+        });
+
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `report_${this.selectedPart}.xlsx`;
+        link.download = `report_${this.selectedPart}_${new Date().toISOString().split('T')[0]}.xlsx`;
         link.click();
     }
 }

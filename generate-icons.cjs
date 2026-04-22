@@ -18,18 +18,9 @@ async function run() {
       const { width, height } = trimmed.info;
       console.log(`Trimmed logo size: ${width}x${height}`);
 
-      // 2. Extract the square icon (assuming it's on the left)
-      // If width is much larger than height, we extract the left square
-      let iconBuffer;
-      if (width > height * 1.2) {
-          console.log('Detected horizontal logo, extracting left square...');
-          iconBuffer = await sharp(trimmed.data)
-            .extract({ left: 0, top: 0, width: height, height: height })
-            .trim() // Trim again to get just the car
-            .toBuffer();
-      } else {
-          iconBuffer = trimmed.data;
-      }
+      // 2. Use the entire logo content
+      const iconBuffer = trimmed.data;
+
 
       // 3. Generate standard icons (Any)
       // We want the logo to be large, filling about 90% of the square

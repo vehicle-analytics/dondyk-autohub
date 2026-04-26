@@ -680,10 +680,10 @@ class CarAnalyticsApp {
             if (header) {
               header.scrollIntoView({ behavior: "instant", block: "start" });
             }
+            // Ініціалізуємо обробники подій ПІСЛЯ того, як сторінка прокручена вгору
+            this.setupEventHandlersAfterRender(mainInterface);
           }, 50);
         });
-
-        this.setupEventHandlersAfterRender(mainInterface);
       }
     });
   }
@@ -1307,21 +1307,21 @@ class CarAnalyticsApp {
                             
                             <!-- Картки метрик -->
                             <div class="flex flex-wrap lg:flex-nowrap items-center flex-1 justify-center gap-2 sm:gap-3 lg:gap-2 xl:gap-3 w-full lg:w-auto">
-                                <div class="bg-blue-400 rounded-xl shadow-lg flex-shrink-0 flex flex-col justify-between stats-card" style="min-width: 140px; width: calc(33.333% - 0.5rem); max-width: 200px; height: 65px; padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
+                                <div class="bg-blue-400 rounded-xl shadow-lg flex-shrink-0 flex flex-col justify-between stats-card" style="min-width: 140px; width: calc(33.333% - 0.5rem); max-width: 200px; min-height: 65px; padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 0.35rem; padding-bottom: 0.35rem;">
                                     <div class="text-white text-[9px] xs:text-[10px] sm:text-xs mb-0.5 text-left font-medium leading-tight">💓 Середній стан автопарку</div>
                                     <div class="text-white text-lg sm:text-xl md:text-2xl font-bold text-center mb-0.5">
                                         ${averageFleetHealth}%
-                            </div>
+                                    </div>
                                     <div class="text-white text-[8px] xs:text-[9px] sm:text-[10px] text-center">${fleetHealthLabel}</div>
-                        </div>
-                                <div class="rounded-xl shadow-lg flex-shrink-0 flex flex-col justify-between stats-card-mileage" style="background-color: ${getMileageCardColor(averageMileage)}; min-width: 140px; width: calc(33.333% - 0.5rem); max-width: 220px; height: 65px; padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
+                                </div>
+                                <div class="rounded-xl shadow-lg flex-shrink-0 flex flex-col justify-between stats-card-mileage" style="background-color: ${getMileageCardColor(averageMileage)}; min-width: 140px; width: calc(33.333% - 0.5rem); max-width: 220px; min-height: 65px; padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 0.35rem; padding-bottom: 0.35rem;">
                                     <div class="text-white text-[9px] xs:text-[10px] sm:text-xs mb-0.5 text-left font-medium leading-tight">🚗💨 Середній пробіг автопарку</div>
                                     <div class="text-white text-lg sm:text-xl md:text-2xl font-bold text-center mb-0.5">
                                         ${this.formatMileage(averageMileage)}
-                    </div>
+                                    </div>
                                     <div class="text-white text-[8px] xs:text-[9px] sm:text-[10px] text-center" style="visibility: hidden;">&nbsp;</div>
                                 </div>
-                                <div class="rounded-xl shadow-lg flex-shrink-0 flex flex-col justify-between stats-card" style="background-color: ${getAgeCardColor(averageAge)}; min-width: 140px; width: calc(33.333% - 0.5rem); max-width: 200px; height: 65px; padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 0.3rem; padding-bottom: 0.3rem;">
+                                <div class="rounded-xl shadow-lg flex-shrink-0 flex flex-col justify-between stats-card" style="background-color: ${getAgeCardColor(averageAge)}; min-width: 140px; width: calc(33.333% - 0.5rem); max-width: 200px; min-height: 65px; padding-left: 0.75rem; padding-right: 0.75rem; padding-top: 0.35rem; padding-bottom: 0.35rem;">
                                     <div class="text-white text-[9px] xs:text-[10px] sm:text-xs mb-0.5 text-left font-medium leading-tight">🎂 Середній вік авто</div>
                                     <div class="text-white text-lg sm:text-xl md:text-2xl font-bold text-center mb-0.5">
                                         ${averageAge}
@@ -1333,37 +1333,39 @@ class CarAnalyticsApp {
                                 @media (min-width: 1024px) {
                                     .stats-card {
                                         width: 200px !important;
-                                        height: 75px !important;
+                                        min-height: 75px !important;
                                     }
                                     .stats-card-mileage {
                                         width: 220px !important;
-                                        height: 75px !important;
+                                        min-height: 75px !important;
                                     }
                                 }
                                 @media (max-width: 640px) {
                                     .stats-card {
                                         width: calc(33.333% - 0.33rem) !important;
-                                        min-width: 110px !important;
-                                        height: 60px !important;
+                                        min-width: 100px !important;
+                                        min-height: 60px !important;
                                     }
                                     .stats-card-mileage {
                                         width: calc(33.333% - 0.33rem) !important;
-                                        min-width: 110px !important;
-                                        height: 60px !important;
+                                        min-width: 100px !important;
+                                        min-height: 60px !important;
                                     }
                                 }
                                 @media (max-width: 480px) {
                                     .stats-card, .stats-card-mileage {
-                                        min-width: 100px !important;
-                                        padding-left: 0.5rem !important;
-                                        padding-right: 0.5rem !important;
+                                        min-width: 90px !important;
+                                        padding-left: 0.4rem !important;
+                                        padding-right: 0.4rem !important;
+                                        min-height: 65px !important;
                                     }
                                 }
                                 @media (max-width: 360px) {
                                     .stats-card, .stats-card-mileage {
-                                        min-width: 90px !important;
-                                        padding-left: 0.4rem !important;
-                                        padding-right: 0.4rem !important;
+                                        min-width: 85px !important;
+                                        padding-left: 0.3rem !important;
+                                        padding-right: 0.3rem !important;
+                                        min-height: 70px !important;
                                     }
                                 }
                             </style>
@@ -5833,18 +5835,32 @@ class CarAnalyticsApp {
 
     let filtersInitialTop = 0;
     let isFixed = false;
+    let calculationAttempts = 0;
 
     const calculateInitialPosition = () => {
-      if (filtersSpacer) {
-        const spacerRect = filtersSpacer.getBoundingClientRect();
-        filtersInitialTop =
-          spacerRect.top +
-          (window.pageYOffset || document.documentElement.scrollTop);
-      } else if (pageHeader) {
-        const headerRect = pageHeader.getBoundingClientRect();
-        const headerHeight = headerRect.height;
-        const statsHeight = statsCards ? statsCards.offsetHeight : 0;
-        filtersInitialTop = headerHeight + (statsHeight + 12);
+      try {
+        if (filtersSpacer) {
+          const spacerRect = filtersSpacer.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const absoluteTop = spacerRect.top + scrollTop;
+          
+          // Саніті-чек: якщо абсолютна позиція занадто мала (менше 100px), 
+          // ймовірно макет ще не завантажився (шапка + метрики точно вищі)
+          if (absoluteTop < 100 && calculationAttempts < 5) {
+             calculationAttempts++;
+             setTimeout(calculateInitialPosition, 200);
+             return;
+          }
+          
+          filtersInitialTop = absoluteTop;
+        } else if (pageHeader) {
+          const headerRect = pageHeader.getBoundingClientRect();
+          const headerHeight = headerRect.height;
+          const statsHeight = statsCards ? statsCards.offsetHeight : 0;
+          filtersInitialTop = headerHeight + (statsHeight + 12);
+        }
+      } catch (e) {
+        console.error("Помилка розрахунку позиції фільтрів:", e);
       }
     };
 
@@ -5853,10 +5869,10 @@ class CarAnalyticsApp {
         if (!filtersContainer || !tableHeader) return;
 
         const filtersHeight = filtersContainer.offsetHeight;
-        const thElements = tableHeader.querySelectorAll("th");
 
         if (shouldBeFixed && !isFixed) {
-          calculateInitialPosition();
+          // Перед фіксацією ще раз перевіряємо чи позиція актуальна
+          if (filtersInitialTop < 100) calculateInitialPosition();
 
           filtersContainer.classList.add("fixed");
           filtersContainer.style.setProperty("top", "0", "important");
@@ -5895,15 +5911,23 @@ class CarAnalyticsApp {
       }
     };
 
+    // Початковий розрахунок з невеликою затримкою для стабілізації макета
     setTimeout(() => {
       calculateInitialPosition();
-      this.filtersScrollHandler();
-    }, 100);
+      if (this.filtersScrollHandler) this.filtersScrollHandler();
+      
+      // Повторний розрахунок через секунду для гарантії (коли всі картинки точно завантажаться)
+      setTimeout(calculateInitialPosition, 1000);
+    }, 250);
 
     this.filtersScrollHandler = () => {
       try {
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const shouldBeFixed = scrollTop >= filtersInitialTop;
+        
+        // Якщо позиція все ще 0, пробуємо розрахувати
+        if (filtersInitialTop === 0) calculateInitialPosition();
+        
+        const shouldBeFixed = scrollTop > 0 && scrollTop >= filtersInitialTop;
         updatePositions(shouldBeFixed);
 
         const tableContainer = document.getElementById("main-table-container");

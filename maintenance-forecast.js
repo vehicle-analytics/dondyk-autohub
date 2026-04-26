@@ -994,7 +994,7 @@ export class MaintenanceForecast {
                                     <div class="accordion-status"></div>
                                     <div class="accordion-part">
                                         <span class="accordion-part-icon">${icon}</span>
-                                        <div class="accordion-part-info">
+                                        <div class="accordion-part-info" data-mobile-info="Залишок: ${details.remaining || forecast.when} • Прогноз: ${details.forecast || forecast.when}">
                                             <div class="accordion-part-name">${partName}</div>
                                             <div class="accordion-part-last">${details.lastDate ? `Остання заміна: ${details.lastDate}` : "Немає даних"}</div>
                                         </div>

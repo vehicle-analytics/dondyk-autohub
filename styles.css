@@ -2307,18 +2307,35 @@ body {
 
 /* Responsive для акордеону */
 @media (max-width: 768px) {
-    .forecast-accordion-header {
+    .accordion-header {
         grid-template-columns: auto 1fr auto;
-        gap: 12px;
+        gap: 8px;
+        padding: 12px 14px;
     }
 
-    .forecast-distance,
-    .forecast-date {
+    .accordion-distance,
+    .accordion-date {
         display: none;
     }
 
-    .forecast-accordion-content {
+    /* Додаємо компактну інформацію про залишок та прогноз під назвою на мобільних */
+    .accordion-part-info::after {
+        content: attr(data-mobile-info);
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 2px;
+    }
+
+    .accordion-toggle {
+        width: 28px;
+        height: 28px;
+    }
+
+    .accordion-content {
         grid-template-columns: 1fr;
+        padding: 14px;
+        gap: 12px;
     }
 
     .accordion-actions {

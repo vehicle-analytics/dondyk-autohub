@@ -400,6 +400,11 @@ class AnalyticsApp {
       });
       this.appData = result.appData;
       this.maintenanceRegulations = result.maintenanceRegulations || (this.appData ? this.appData.regulations : []) || [];
+      
+      // Сортуємо записи за датою для швидкої фільтрації
+      if (this.appData && this.appData.records) {
+        this.appData.records.sort((a, b) => (a.isoDate || "").localeCompare(b.isoDate || ""));
+      }
     } catch (error) {
       console.error("❌ Помилка обробки даних у Worker:", error);
       throw error;
@@ -431,6 +436,9 @@ class AnalyticsApp {
 
       if (this.appData && incrementalData) {
         this.appData.records = [...prevRecords, ...(incrementalData.records || [])];
+        // Пересортовуємо після додавання нових даних
+        this.appData.records.sort((a, b) => (a.isoDate || "").localeCompare(b.isoDate || ""));
+        
         this.appData.currentMileages = { ...this.appData.currentMileages, ...incrementalData.currentMileages };
         this.appData.regulations = incrementalData.regulations;
         this.maintenanceRegulations = incrementalData.regulations || result.maintenanceRegulations || [];
@@ -572,11 +580,18 @@ class AnalyticsApp {
 
     const periodRange = this.getPeriodRange(this.filters.period);
     if (periodRange) {
-      filteredRecords = filteredRecords.filter((r) => {
-        if (!r.isoDate) return false;
-        const recordDate = new Date(r.isoDate);
-        return recordDate >= periodRange.start && recordDate <= periodRange.end;
-      });
+      const startTime = periodRange.start.toISOString();
+      const endTime = periodRange.end.toISOString();
+      
+      // Використовуємо бінарний пошук для знаходження діапазону (records вже відсортовані)
+      const startIndex = this.findFirstIndex(filteredRecords, startTime);
+      const endIndex = this.findLastIndex(filteredRecords, endTime);
+      
+      if (startIndex !== -1 && endIndex !== -1) {
+        filteredRecords = filteredRecords.slice(startIndex, endIndex + 1);
+      } else {
+        filteredRecords = [];
+      }
     }
     // Якщо periodRange === null, використовуємо всі записи (для "Всі роки")
 
@@ -610,9 +625,18 @@ class AnalyticsApp {
       });
     }
 
+    // Group records by car for performance
+    const recordsByCar = {};
+    filteredRecords.forEach((r) => {
+      if (!r.car) return;
+      if (!recordsByCar[r.car]) recordsByCar[r.car] = [];
+      recordsByCar[r.car].push(r);
+    });
+
     this.filteredData = {
       records: filteredRecords,
       cars: filteredCars,
+      recordsByCar: recordsByCar,
       periodRange: periodRange,
     };
 
@@ -746,10 +770,12 @@ class AnalyticsApp {
   renderAll() {
     // Поетапний рендер: кожна секція виконується в окремому кадрі анімації.
     // Це дозволяє браузеру малювати між секціями і не «заморожує» UI на мобільних.
-    this.renderMetrics(); // Найважливіше — одразу (синхронно)
-
-    // Наступні секції — по одній через rAF, щоб не блокувати головний потік
+    
+    // Навіть найважливішу секцію (метрики) запускаємо через rAF, щоб дати браузеру
+    // обробити подію кліку/зміни фільтра і показати фідбек (наприклад, зміну стилю кнопки)
     Promise.resolve()
+      .then(() => new Promise(r => requestAnimationFrame(r)))
+      .then(() => this.renderMetrics())
       .then(() => new Promise(r => requestAnimationFrame(r)))
       .then(() => this.renderExpenses())
       .then(() => new Promise(r => requestAnimationFrame(r)))
@@ -998,7 +1024,7 @@ class AnalyticsApp {
   }
 
   getPreviousPeriodData() {
-    if (!this.appData) return [];
+    if (!this.appData || !this.appData.records) return [];
 
     // Якщо periodRange === null (всі роки), не показуємо попередній період
     if (!this.filteredData?.periodRange) return [];
@@ -1007,12 +1033,58 @@ class AnalyticsApp {
     const periodLength = end.getTime() - start.getTime();
     const previousStart = new Date(start.getTime() - periodLength);
     const previousEnd = new Date(start.getTime() - 1);
+    
+    const startTimeIso = previousStart.toISOString();
+    const endTimeIso = previousEnd.toISOString();
 
-    return (this.appData.records || []).filter((r) => {
-      if (!r.date) return false;
-      const recordDate = new Date(r.date);
-      return recordDate >= previousStart && recordDate <= previousEnd;
-    });
+    // Швидкий пошук діапазону в уже відсортованих записах
+    const startIndex = this.findFirstIndex(this.appData.records, startTimeIso);
+    const endIndex = this.findLastIndex(this.appData.records, endTimeIso);
+    
+    if (startIndex === -1 || endIndex === -1) return [];
+    return this.appData.records.slice(startIndex, endIndex + 1);
+  }
+
+  /**
+   * Бінарний пошук для першого індексу, де isoDate >= targetDate
+   */
+  findFirstIndex(records, targetDateIso) {
+    let low = 0;
+    let high = records.length - 1;
+    let result = -1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const midDate = records[mid].isoDate || "";
+      if (midDate >= targetDateIso) {
+        result = mid;
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Бінарний пошук для останнього індексу, де isoDate <= targetDate
+   */
+  findLastIndex(records, targetDateIso) {
+    let low = 0;
+    let high = records.length - 1;
+    let result = -1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const midDate = records[mid].isoDate || "";
+      if (midDate <= targetDateIso) {
+        result = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return result;
   }
 
   calculateAvgMileage(records) {
@@ -1061,22 +1133,18 @@ class AnalyticsApp {
     
     // Якщо вибрано конкретний рік (і це не поточний рік)
     if (selectedYear && selectedYear !== now.getFullYear()) {
-      // Фільтруємо історію за вибраний рік
+      const yearStr = selectedYear.toString();
+      // Фільтруємо історію за вибраний рік за допомогою isoDate (швидше)
       const yearHistory = car.history.filter((record) => {
-        const recordDate = parseDateFunc(record.date);
-        return recordDate && !isNaN(recordDate.getTime()) && recordDate.getFullYear() === selectedYear;
-      }).sort((a, b) => {
-        const dateA = parseDateFunc(a.date) || new Date(0);
-        const dateB = parseDateFunc(b.date) || new Date(0);
-        return dateA - dateB;
-      });
+        return record.isoDate && record.isoDate.startsWith(yearStr);
+      }).sort((a, b) => (a.isoDate || "").localeCompare(b.isoDate || ""));
 
       if (yearHistory.length < 2) return 0; // Немає даних за цей рік
 
       const firstRecord = yearHistory[0];
       const lastRecord = yearHistory[yearHistory.length - 1];
-      const firstDate = parseDateFunc(firstRecord.date);
-      const lastDate = parseDateFunc(lastRecord.date);
+      const firstDate = new Date(firstRecord.isoDate);
+      const lastDate = new Date(lastRecord.isoDate);
 
       if (!firstDate || !lastDate) return 0;
 
@@ -1099,25 +1167,19 @@ class AnalyticsApp {
 
     // Фільтруємо історію за останні 5-6 місяців
     const recentHistory = car.history.filter((record) => {
-      const recordDate = parseDateFunc(record.date);
-      if (!recordDate || isNaN(recordDate.getTime())) return false;
-      return recordDate >= fiveAndHalfMonthsAgo;
+      return record.isoDate && new Date(record.isoDate) >= fiveAndHalfMonthsAgo;
     });
 
     if (recentHistory.length < 2) {
       // Якщо немає достатньо даних за останні 5-6 місяців, використовуємо всі дані
-      const sortedHistory = [...car.history].sort((a, b) => {
-        const dateA = parseDateFunc(a.date) || new Date(0);
-        const dateB = parseDateFunc(b.date) || new Date(0);
-        return dateA - dateB;
-      });
+      const sortedHistory = [...car.history].sort((a, b) => (a.isoDate || "").localeCompare(b.isoDate || ""));
 
       if (sortedHistory.length < 2) return 1000;
 
       const firstRecord = sortedHistory[0];
       const lastRecord = sortedHistory[sortedHistory.length - 1];
-      const firstDate = parseDateFunc(firstRecord.date);
-      const lastDate = parseDateFunc(lastRecord.date);
+      const firstDate = new Date(firstRecord.isoDate);
+      const lastDate = new Date(lastRecord.isoDate);
 
       if (!firstDate || !lastDate) return 1000;
 
@@ -1132,16 +1194,12 @@ class AnalyticsApp {
     }
 
     // Сортуємо записи за датою
-    const sortedRecentHistory = [...recentHistory].sort((a, b) => {
-      const dateA = parseDateFunc(a.date) || new Date(0);
-      const dateB = parseDateFunc(b.date) || new Date(0);
-      return dateA - dateB;
-    });
+    const sortedRecentHistory = [...recentHistory].sort((a, b) => (a.isoDate || "").localeCompare(b.isoDate || ""));
 
     const firstRecord = sortedRecentHistory[0];
     const lastRecord = sortedRecentHistory[sortedRecentHistory.length - 1];
-    const firstDate = parseDateFunc(firstRecord.date);
-    const lastDate = parseDateFunc(lastRecord.date);
+    const firstDate = new Date(firstRecord.isoDate);
+    const lastDate = new Date(lastRecord.isoDate);
     const endDate = lastDate > now ? now : lastDate;
 
     if (!firstDate || !endDate) return 1000;
@@ -1317,8 +1375,7 @@ class AnalyticsApp {
       const dailyRepairs = {};
       yearRecords.forEach((r) => {
         if (!r.isoDate || !r.car) return;
-        const recordDate = new Date(r.isoDate);
-        const dayKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
+        const dayKey = r.isoDate.substring(0, 10);
         if (!dailyRepairs[dayKey]) {
           dailyRepairs[dayKey] = new Set();
         }
@@ -1357,12 +1414,11 @@ class AnalyticsApp {
       const monthlyRepairs = {};
       yearRecords.forEach((r) => {
         if (!r.isoDate || !r.car) return;
-        const recordDate = new Date(r.isoDate);
-        const monthKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}`;
+        const monthKey = r.isoDate.substring(0, 7);
         if (!monthlyRepairs[monthKey]) {
           monthlyRepairs[monthKey] = new Set();
         }
-        const dateKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
+        const dateKey = r.isoDate.substring(0, 10);
         monthlyRepairs[monthKey].add(`${dateKey}_${r.car}`);
       });
       const monthCounts = Object.values(monthlyRepairs).map(
@@ -1510,20 +1566,17 @@ class AnalyticsApp {
       const dailyValues = {};
       yearRecords.forEach((r) => {
         if (!r.isoDate) return;
-        const recordDate = new Date(r.isoDate);
-        if (recordDate.getFullYear() === year) {
-          const dayKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}-${String(recordDate.getDate()).padStart(2, "0")}`;
-          if (!dailyValues[dayKey]) {
-            dailyValues[dayKey] = {
-              expenses: 0,
-              count: 0,
-              recs: [],
-            };
-          }
-          dailyValues[dayKey].expenses += r.totalWithVAT || 0;
-          dailyValues[dayKey].count += 1;
-          dailyValues[dayKey].recs.push(r);
+        const dayKey = r.isoDate.substring(0, 10);
+        if (!dailyValues[dayKey]) {
+          dailyValues[dayKey] = {
+            expenses: 0,
+            count: 0,
+            recs: [],
+          };
         }
+        dailyValues[dayKey].expenses += r.totalWithVAT || 0;
+        dailyValues[dayKey].count += 1;
+        dailyValues[dayKey].recs.push(r);
       });
 
       const workingDays = this.getWorkingDaysCount(new Date(year, 0, 1), new Date(year, 11, 31));
@@ -1580,20 +1633,17 @@ class AnalyticsApp {
       const monthlyValues = {};
       yearRecords.forEach((r) => {
         if (!r.isoDate) return;
-        const recordDate = new Date(r.isoDate);
-        if (recordDate.getFullYear() === year) {
-          const monthKey = `${year}-${String(recordDate.getMonth() + 1).padStart(2, "0")}`;
-          if (!monthlyValues[monthKey]) {
-            monthlyValues[monthKey] = {
-              expenses: 0,
-              count: 0,
-              recs: [],
-            };
-          }
-          monthlyValues[monthKey].expenses += r.totalWithVAT || 0;
-          monthlyValues[monthKey].count += 1;
-          monthlyValues[monthKey].recs.push(r);
+        const monthKey = r.isoDate.substring(0, 7);
+        if (!monthlyValues[monthKey]) {
+          monthlyValues[monthKey] = {
+            expenses: 0,
+            count: 0,
+            recs: [],
+          };
         }
+        monthlyValues[monthKey].expenses += r.totalWithVAT || 0;
+        monthlyValues[monthKey].count += 1;
+        monthlyValues[monthKey].recs.push(r);
       });
 
       const monthValues = Object.values(monthlyValues);
@@ -1769,18 +1819,16 @@ class AnalyticsApp {
 
     records.forEach((r) => {
       if (!r.isoDate || !r.totalWithVAT) return;
-      const date = new Date(r.isoDate);
       const isYearFilter = this.filters.selectedYear === null;
       
       const key = isYearFilter
-          ? date.getFullYear().toString()
-          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+          ? r.isoDate.substring(0, 4)
+          : r.isoDate.substring(0, 7);
       
       // Для режиму "по місяцях" (коли вибрано конкретний рік) 
       // ігноруємо майбутні місяці з нульовими або неактуальними даними для "Фактичних витрат"
       if (!isYearFilter) {
-          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-          if (monthKey > currentMonthKey) return; 
+          if (key > currentMonthKey) return; 
       }
       
       if (!byPeriod[key]) byPeriod[key] = 0;
@@ -1791,8 +1839,7 @@ class AnalyticsApp {
     const monthlyForForecast = {};
     records.forEach((r) => {
       if (!r.isoDate || !r.totalWithVAT) return;
-      const date = new Date(r.isoDate);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const key = r.isoDate.substring(0, 7);
       if (!monthlyForForecast[key]) monthlyForForecast[key] = 0;
       monthlyForForecast[key] += r.totalWithVAT;
     });
@@ -2347,7 +2394,7 @@ class AnalyticsApp {
 
     // --- PRE-CALCULATE ALL CAR METRICS ---
     const carMetrics = cars.map((car) => {
-      const carRecords = records.filter((r) => r.car === car.license);
+      const carRecords = this.filteredData.recordsByCar[car.license] || [];
       const totalCost = carRecords.reduce(
         (sum, r) => sum + (r.totalWithVAT || 0),
         0,
@@ -2633,13 +2680,12 @@ class AnalyticsApp {
     // Group by month/year
     const byPeriod = {};
     records.forEach((r) => {
-      const date = r.isoDate ? new Date(r.isoDate) : (r.date ? new Date(r.date) : null);
-      if (!date || isNaN(date.getTime())) return; // Filter out invalid dates
+      if (!r.isoDate) return;
       
       const key =
         this.filters.selectedYear === null
-          ? date.getFullYear().toString()
-          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+          ? r.isoDate.substring(0, 4)
+          : r.isoDate.substring(0, 7);
       if (!byPeriod[key]) byPeriod[key] = 0;
       byPeriod[key]++;
     });

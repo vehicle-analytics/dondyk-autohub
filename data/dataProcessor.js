@@ -316,8 +316,8 @@ export class DataProcessor {
       if (regulation.modelPattern !== "*" && regulation.modelPattern !== ".*") {
         try {
           let pattern = regulation.modelPattern;
-          if (pattern.startsWith(".")) pattern = pattern.replace(/^\./, "(?:^|[\\s\\-\\/])");
-          if (pattern.endsWith(".")) pattern = pattern.replace(/\.$/, "(?:[\\s\\-\\/]|$)");
+          if (pattern.startsWith(".")) pattern = pattern.replace(/^\.\s*/, "(?:^|[\\s\\-\\/])");
+          if (pattern.endsWith(".")) pattern = pattern.replace(/\s*\.$/, "(?:[\\s\\-\\/]|$)");
           regulation.modelRegex = new RegExp(pattern, "i");
         } catch(e) {}
       }

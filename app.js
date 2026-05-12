@@ -3578,73 +3578,50 @@ class CarAnalyticsApp {
     if (part && !isChainDriveGRM) {
       // Регламент вже знайдено вище
 
-      if (
-        mileageBasedParts.includes(partName) &&
-        regulation &&
-        regulation.periodType === "пробіг"
-      ) {
+      // Отримуємо інформацію про наступну заміну (з регламенту або за замовчуванням)
+      const nextInfo = this.getNextReplacementInfo(car, partName, part);
+      
+      if (mileageBasedParts.includes(partName)) {
         // Перевіряємо, чи є індивідуальний регламент
-        const hasIndividualRegulation =
-          regulation &&
-          ((regulation.licensePattern !== "*" &&
-            regulation.licensePattern !== ".*") ||
-            (regulation.brandPattern !== "*" &&
-              regulation.brandPattern !== ".*" &&
-              regulation.modelPattern !== "*" &&
-              regulation.modelPattern !== ".*"));
-
+        const hasIndividualRegulation = regulation && 
+          ((regulation.licensePattern !== '*' && regulation.licensePattern !== '.*') || 
+           (regulation.brandPattern !== '*' && regulation.brandPattern !== '.*' && regulation.modelPattern !== '*' && regulation.modelPattern !== '.*'));
+        
         let normalValue;
         if (hasIndividualRegulation && regulation.regulationValue) {
           normalValue = regulation.regulationValue;
-        } else if (
-          regulation.normalValue &&
-          regulation.normalValue !== "chain"
-        ) {
+        } else if (regulation && regulation.normalValue && regulation.normalValue !== 'chain') {
           normalValue = regulation.normalValue;
+        } else {
+          // Fallback для стандартних запчастин, якщо регламент не знайдено
+          const defaultMileage = {
+            'ТО (масло+фільтри) 🛢️': 15000,
+            'ГРМ (ролики+ремінь) ⚙️': 60000,
+            'Обвідний ремінь+ролики 🔧': 60000,
+            'Помпа 💧': 60000,
+            'Свічки запалювання 🔥': 30000
+          };
+          normalValue = defaultMileage[partName] || 15000;
         }
 
-        if (
-          normalValue &&
-          part.mileageDiff !== undefined &&
-          part.mileageDiff !== null
-        ) {
-          progressPercent = Math.min(
-            100,
-            Math.max(0, Math.round((part.mileageDiff / normalValue) * 100)),
-          );
-
-          // Для запчастин ТО, ГРМ, Помпа, Обвідний ремінь, Свічки запалювання показуємо мінусовий пробіг при перепробігу
-          const partsWithNegativeMileage = [
-            "ТО (масло+фільтри) 🛢️",
-            "ГРМ (ролики+ремінь) ⚙️",
-            "Помпа 💧",
-            "Обвідний ремінь+ролики 🔧",
-            "Свічки запалювання 🔥",
-          ];
-
-          if (
-            partsWithNegativeMileage.includes(partName) &&
-            part.mileageDiff > normalValue
-          ) {
-            // Показуємо мінусовий пробіг (перепробіг)
+        if (normalValue && part.mileageDiff !== undefined && part.mileageDiff !== null) {
+          progressPercent = Math.min(100, Math.max(0, Math.round((part.mileageDiff / normalValue) * 100)));
+          
+          const partsWithNegativeMileage = ['ТО (масло+фільтри) 🛢️', 'ГРМ (ролики+ремінь) ⚙️', 'Помпа 💧', 'Обвідний ремінь+ролики 🔧', 'Свічки запалювання 🔥'];
+          
+          if (partsWithNegativeMileage.includes(partName) && part.mileageDiff > normalValue) {
             const overMileage = part.mileageDiff - normalValue;
-            progressText = "-" + this.formatMileageDiff(overMileage);
-            progressLabel = "Перепробіг";
+            progressText = '-' + this.formatMileageDiff(overMileage);
+            progressLabel = 'Перепробіг';
             progressPercent = 100;
-            const nextMileageValue = part.mileage + normalValue;
-            nextMileage = this.formatMileage(nextMileageValue);
-            nextServiceText = `Наступна заміна на ${nextMileage}`;
           } else {
-            // Звичайна логіка для інших випадків
-            const remainingMileage = Math.max(
-              0,
-              normalValue - part.mileageDiff,
-            );
-            const nextMileageValue = part.mileage + normalValue;
-            nextMileage = this.formatMileage(nextMileageValue);
+            const remainingMileage = Math.max(0, normalValue - part.mileageDiff);
             progressText = this.formatMileageDiff(remainingMileage);
-            progressLabel = "До наступної заміни";
-            nextServiceText = `Наступна заміна на ${nextMileage}`;
+            progressLabel = 'До наступної заміни';
+          }
+          
+          if (nextInfo) {
+            nextServiceText = nextInfo;
           }
         }
       } else if (dateBasedParts.includes(partName)) {

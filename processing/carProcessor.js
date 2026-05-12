@@ -322,14 +322,7 @@ export class CarProcessor {
     // Діагностичне логування (відключено для продуктивності)
     const normalizedLicense = normalizeLicense(license);
     const DEBUG = CONFIG && CONFIG.DEBUG;
-    const isDebugCar =
-      normalizedLicense === "KA8426PX" ||
-      normalizedLicense === "AI9573OO" || 
-      normalizedLicense === "AA4132XH";
-
-    if (isDebugCar) {
-        console.log(`[DEBUG MATCH] Matching car ${license} (${model}) for part ${partName}`);
-    }
+    const isDebugCar = false;
 
     // Визначаємо normalizedMappedPartName поза циклом, щоб вона була доступна в усіх місцях
     // Видаляємо емодзі з назви для порівняння
@@ -351,10 +344,6 @@ export class CarProcessor {
       const regulationPartName = regulation.normalizedPartName || "";
 
       let partNameMatches = false;
-      
-      if (isDebugCar && (partName.includes("ТО") || partName.includes("масло"))) {
-          console.log(`[DEBUG PART] Comparing: "${normalizedMappedPartName}" vs "${regulationPartName}"`);
-      }
 
       // Для ТО (масло+фільтри) перевіряємо різні варіанти назви
       const regPartLower = regulationPartName.toLowerCase();
@@ -456,7 +445,6 @@ export class CarProcessor {
         }
         
         if (regulation.brandRegex && !regulation.brandRegex.test(model)) {
-          if (isDebugCar) console.log(`    FAIL: Brand mismatch (${regulation.brandPattern} vs ${model})`);
           continue;
         }
       }
@@ -476,24 +464,15 @@ export class CarProcessor {
         }
         
         if (regulation.modelRegex && !regulation.modelRegex.test(model)) {
-          if (isDebugCar) console.log(`    FAIL: Model mismatch (${regulation.modelPattern} vs ${model})`);
           continue;
         }
       }
 
-      if (isDebugCar) {
-          console.log(`  Checking regulation: ${regulation.brandPattern} | ${regulation.modelPattern} | ${regulation.partName}`);
-          console.log(`    Part match: ${partNameMatches}`);
-          console.log(`    Year range: ${regulation.yearFrom}-${regulation.yearTo} (Car: ${carYear})`);
-      }
-
       // Перевіряємо рік випуску авто
       if (carYear < regulation.yearFrom || carYear > regulation.yearTo) {
-        if (isDebugCar) console.log(`    FAIL: Year mismatch`);
         continue;
       }
 
-      if (isDebugCar) console.log(`    SUCCESS: Regulation matched!`);
       matchingRegulations.push(regulation);
     }
 

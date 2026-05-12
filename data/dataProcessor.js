@@ -59,7 +59,7 @@ export class DataProcessor {
       if (!row || row.length < 3) continue;
 
       const license = String(row[CONSTANTS.SCHEDULE_COL_LICENSE] || "").trim();
-      
+
       // Skip empty or summary rows
       if (license && license.length >= 7 && !license.includes('Всього')) {
         const city = String(row[CONSTANTS.SCHEDULE_COL_CITY] || "").trim();
@@ -105,7 +105,7 @@ export class DataProcessor {
     const records = [];
     const currentMileages = {};
     const allowedCarsSet = new Set(allowedCars);
-    
+
     // Cache constants to avoid lookup in loop
     const COL_CAR = CONSTANTS.COL_CAR;
     const COL_MILEAGE = CONSTANTS.COL_MILEAGE;
@@ -144,10 +144,10 @@ export class DataProcessor {
       const dateRaw = (row.length > COL_DATE_NEEDED && row[COL_DATE_NEEDED])
         ? row[COL_DATE_NEEDED]
         : row[COL_DATE];
-      
+
       let dateFormatted = "";
       let isoDate = "";
-      
+
       if (dateRaw) {
         const dateObj = parseDate(String(dateRaw).trim());
         if (dateObj && !isNaN(dateObj.getTime())) {
@@ -160,7 +160,7 @@ export class DataProcessor {
 
       const quantity = row.length > COL_QUANTITY ? parseNumber(row[COL_QUANTITY]) : 0;
       const price = row.length > COL_PRICE ? parseNumber(row[COL_PRICE]) : 0;
-      
+
       // В сумі витрат НЕ враховувати заявки зі статусом "відмова"
       let totalWithVAT = 0;
       if (!isRejected) {
@@ -309,17 +309,17 @@ export class DataProcessor {
 
       regulation.normalizedPartName = removeEmoji(regulation.partName);
       regulation.normalizedLicensePattern = normalizeLicenseForComparison(regulation.licensePattern);
-      
+
       if (regulation.brandPattern !== "*" && regulation.brandPattern !== ".*") {
-        try { regulation.brandRegex = new RegExp(regulation.brandPattern, "i"); } catch(e) {}
+        try { regulation.brandRegex = new RegExp(regulation.brandPattern, "i"); } catch (e) { }
       }
       if (regulation.modelPattern !== "*" && regulation.modelPattern !== ".*") {
         try {
           let pattern = regulation.modelPattern;
-          if (pattern.startsWith(".")) pattern = pattern.replace(/^\.\s*/, "(?:^|[\\s\\-\\/])");
-          if (pattern.endsWith(".")) pattern = pattern.replace(/\s*\.$/, "(?:[\\s\\-\\/]|$)");
+          if (pattern.startsWith(".")) pattern = pattern.replace(/^\./, "(?:^|[\\s\\-\\/])");
+          if (pattern.endsWith(".")) pattern = pattern.replace(/\.$/, "(?:[\\s\\-\\/]|$)");
           regulation.modelRegex = new RegExp(pattern, "i");
-        } catch(e) {}
+        } catch (e) { }
       }
 
       regulations.push(regulation);

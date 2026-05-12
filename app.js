@@ -54,7 +54,7 @@ class CarAnalyticsApp {
     if (!this.worker) {
       this.worker = new AnalyticsWorker();
     }
-    
+
     return new Promise((resolve, reject) => {
       const handler = (e) => {
         if (e.data.type === `${type}_SUCCESS`) {
@@ -67,13 +67,13 @@ class CarAnalyticsApp {
           reject(new Error(e.data.payload));
         }
       };
-      
+
       const errorHandler = (err) => {
         this.worker.removeEventListener('message', handler);
         this.worker.removeEventListener('error', errorHandler);
         reject(err);
       };
-      
+
       this.worker.addEventListener('message', handler);
       this.worker.addEventListener('error', errorHandler);
       this.worker.postMessage({ type, data });
@@ -101,7 +101,7 @@ class CarAnalyticsApp {
       ) {
         this.processedCars = cached.processedCars;
       }
-      
+
       // Рендеримо миттєво з кешу
       this.render();
       this.updateLoadingProgress(100);
@@ -219,9 +219,9 @@ class CarAnalyticsApp {
     if (footerInfo) {
       const offlineIndicator = document.getElementById("offline-indicator");
       if (isOffline && !offlineIndicator) {
-         footerInfo.innerHTML += ' <span id="offline-indicator" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">ОФЛАЙН</span>';
+        footerInfo.innerHTML += ' <span id="offline-indicator" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">ОФЛАЙН</span>';
       } else if (!isOffline && offlineIndicator) {
-         offlineIndicator.remove();
+        offlineIndicator.remove();
       }
     }
   }
@@ -357,7 +357,7 @@ class CarAnalyticsApp {
 
     this.updateLoadingProgress(30);
     this.updateLoadingProgress(40);
-    
+
     // === Спроба завантажити Pre-baked Data ===
     let usedSeedData = false;
     let scheduleData, historyData, regulationsData, photoAssessmentData;
@@ -379,7 +379,7 @@ class CarAnalyticsApp {
             // Обробляємо та миттєво викликаємо рендер
             this.processData(scheduleData, historyData, regulationsData, photoAssessmentData);
             this.render();
-            
+
             // Інтерфейс буде показаний автоматично всередині renderCarList після завершення роботи Worker
             console.log("🔄 Дані завантажено з seed-data.js. Очікуємо рендерінг...");
           }
@@ -390,7 +390,7 @@ class CarAnalyticsApp {
     }
 
     console.log("🌐 Fetching latest data from Google Sheets...");
-    
+
     const [freshSchedule, freshHistory, freshRegulations, freshPhoto] =
       await Promise.all([
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.SCHEDULE, API_KEY),
@@ -398,7 +398,7 @@ class CarAnalyticsApp {
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.REGULATIONS, API_KEY),
         this.fetchSheetData(SPREADSHEET_ID, SHEETS.PHOTO_ASSESSMENT, API_KEY),
       ]);
-      
+
     scheduleData = freshSchedule;
     historyData = freshHistory;
     regulationsData = freshRegulations;
@@ -630,7 +630,7 @@ class CarAnalyticsApp {
     requestAnimationFrame(async () => {
       if (!this.processedCars) {
         this.updateLoadingProgress(60);
-        
+
         try {
           // Використовуємо Worker для важких обчислень
           this.processedCars = await this.callWorker('PROCESS_CARS', {
@@ -2192,10 +2192,10 @@ class CarAnalyticsApp {
         if (recordDate >= oneYearAgo) {
           // Для базового середнього чеку ВИКЛЮЧАЄМО великі ремонти та ТО
           const isMaintenance = maintenanceRegex.test(record.description || '');
-          
+
           if (!isMaintenance) {
             stats.lastYearSpent += record.totalWithVAT;
-            
+
             try {
               const monthKey = recordDate.toISOString().substring(0, 7);
               stats.byMonth[monthKey] = (stats.byMonth[monthKey] || 0) + record.totalWithVAT;
@@ -2234,14 +2234,14 @@ class CarAnalyticsApp {
     if (!this.financialForecaster) {
       this.financialForecaster = new FinancialForecaster(CONSTANTS);
     }
-    
+
     // Використовуємо уніфікований рушій FinancialForecaster для гарантії ідентичності з аналітикою
     const forecast = this.financialForecaster.calculateCarForecast(
-      car, 
-      this.maintenanceRegulations, 
+      car,
+      this.maintenanceRegulations,
       months
     );
-    
+
     return forecast.totalForecast;
   }
 
@@ -2307,18 +2307,18 @@ class CarAnalyticsApp {
   // Логіка ідентична calculateCostStats.averagePerMonth, але без рекурсії
   _getAvgMonthlyFromHistory(history) {
     if (!history || history.length === 0) return 0;
-    
+
     const now = new Date();
     const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
     const maintenanceRegex = /ТО|масло|фільтр|ГРМ|помпа|ролик|ремонт|заміна|ходова|колодки|диски|амортизатор|ричаг|сайлентблок|підвіска|зчеплення|стартер|генератор|акумулятор|комп'ютерна|діагностика/i;
-    
+
     let lastYearSpentTotal = 0;
     const byMonth = {};
 
     history.forEach(record => {
       if (!record.totalWithVAT || record.totalWithVAT <= 0) return;
       if (record.status && String(record.status).trim().toLowerCase() === 'відмова') return;
-      
+
       let recordDate = null;
       if (record.isoDate) {
         recordDate = new Date(record.isoDate);
@@ -2332,16 +2332,16 @@ class CarAnalyticsApp {
           recordDate = new Date(record.date);
         }
       }
-      
+
       if (!recordDate || isNaN(recordDate.getTime())) return;
-      
+
       // Аналізуємо ТІЛЬКИ останній рік
       if (recordDate >= oneYearAgo) {
         const isMaintenance = maintenanceRegex.test(record.description || '');
-        
+
         if (!isMaintenance) {
           lastYearSpentTotal += record.totalWithVAT;
-          
+
           try {
             const monthKey = recordDate.toISOString().substring(0, 7);
             byMonth[monthKey] = (byMonth[monthKey] || 0) + record.totalWithVAT;
@@ -2989,7 +2989,7 @@ class CarAnalyticsApp {
     if (!this.financialForecaster) return "";
 
     const forecast = this.financialForecaster.calculateCarForecast(car, this.maintenanceRegulations);
-    
+
     return `
       <div class="financial-forecast-section mt-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
         <div class="flex items-center justify-between mb-4">
@@ -3275,7 +3275,7 @@ class CarAnalyticsApp {
 
   generateCarPartsHTML(car, partNames) {
     // Використовуємо централізовану логіку CarProcessor для фільтрації запчастин
-    let filteredPartNames = partNames.filter((name) => 
+    let filteredPartNames = partNames.filter((name) =>
       CarProcessor.shouldShowPartForCar(car, name)
     );
 
@@ -5004,13 +5004,13 @@ class CarAnalyticsApp {
                 <span>📜</span> Історія обслуговування
                 <div class="flex flex-wrap items-center gap-1">
                     ${hasPartFilter
-          ? `
+        ? `
                         <span class="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-1 rounded">
                             📌 ${this.state.selectedHistoryPartFilter}
                         </span>
                     `
-          : ""
-        }
+        : ""
+      }
                     <span id="history-search-badge" class="text-xs font-normal text-green-600 bg-green-50 px-2 py-1 rounded"
                           style="display: ${hasSearchTerm ? '' : 'none'};">
                         <span id="history-search-badge-text">🔎 "${this.state.historySearchTerm}"</span>
@@ -5612,10 +5612,10 @@ class CarAnalyticsApp {
       // Очищаємо оброблені дані, щоб вони перерахувалися
       this.processedCars = null;
       this.filteredCars = null;
-      
+
       // Викликаємо loadData з параметром примусового оновлення
       await this.loadData(true);
-      
+
       this.showNotification("Дані успішно оновлено", "success");
       console.log("✅ Дані оновлено");
     } catch (error) {
@@ -5843,15 +5843,15 @@ class CarAnalyticsApp {
           const spacerRect = filtersSpacer.getBoundingClientRect();
           const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
           const absoluteTop = spacerRect.top + scrollTop;
-          
+
           // Саніті-чек: якщо абсолютна позиція занадто мала (менше 100px), 
           // ймовірно макет ще не завантажився (шапка + метрики точно вищі)
           if (absoluteTop < 100 && calculationAttempts < 5) {
-             calculationAttempts++;
-             setTimeout(calculateInitialPosition, 200);
-             return;
+            calculationAttempts++;
+            setTimeout(calculateInitialPosition, 200);
+            return;
           }
-          
+
           filtersInitialTop = absoluteTop;
         } else if (pageHeader) {
           const headerRect = pageHeader.getBoundingClientRect();
@@ -5915,7 +5915,7 @@ class CarAnalyticsApp {
     setTimeout(() => {
       calculateInitialPosition();
       if (this.filtersScrollHandler) this.filtersScrollHandler();
-      
+
       // Повторний розрахунок через секунду для гарантії (коли всі картинки точно завантажаться)
       setTimeout(calculateInitialPosition, 1000);
     }, 250);
@@ -5923,10 +5923,10 @@ class CarAnalyticsApp {
     this.filtersScrollHandler = () => {
       try {
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        
+
         // Якщо позиція все ще 0, пробуємо розрахувати
         if (filtersInitialTop === 0) calculateInitialPosition();
-        
+
         const shouldBeFixed = scrollTop > 0 && scrollTop >= filtersInitialTop;
         updatePositions(shouldBeFixed);
 
@@ -5934,7 +5934,7 @@ class CarAnalyticsApp {
         if (tableContainer && tableHeader) {
           const tableRect = tableContainer.getBoundingClientRect();
           const currentFiltersHeight = filtersContainer.classList.contains("fixed") ? filtersContainer.offsetHeight : 0;
-          
+
           let offsetY = 0;
           if (tableRect.top < currentFiltersHeight) {
             offsetY = currentFiltersHeight - tableRect.top;
@@ -5942,10 +5942,10 @@ class CarAnalyticsApp {
             if (offsetY > maxOffset) offsetY = maxOffset;
             if (offsetY < 0) offsetY = 0;
           }
-          
+
           const thElements = tableHeader.querySelectorAll("th");
           thElements.forEach(th => {
-              th.style.transform = offsetY > 0 ? `translateY(${Math.max(0, offsetY)}px)` : '';
+            th.style.transform = offsetY > 0 ? `translateY(${Math.max(0, offsetY)}px)` : '';
           });
         }
       } catch (error) {
@@ -6012,8 +6012,8 @@ class CarAnalyticsApp {
     if (tableHeader) {
       const thElements = tableHeader.querySelectorAll("th");
       thElements.forEach(th => {
-          th.style.removeProperty("top");
-          th.style.removeProperty("transform");
+        th.style.removeProperty("top");
+        th.style.removeProperty("transform");
       });
     }
   }

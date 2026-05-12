@@ -323,9 +323,13 @@ export class CarProcessor {
     const normalizedLicense = normalizeLicense(license);
     const DEBUG = CONFIG && CONFIG.DEBUG;
     const isDebugCar =
-      false &&
-      DEBUG &&
-      (normalizedLicense === "AI9573OO" || normalizedLicense === "AA4132XH");
+      normalizedLicense === "KA8426PX" ||
+      normalizedLicense === "AI9573OO" || 
+      normalizedLicense === "AA4132XH";
+
+    if (isDebugCar) {
+        console.log(`[DEBUG MATCH] Matching car ${license} (${model}) for part ${partName}`);
+    }
 
     // Визначаємо normalizedMappedPartName поза циклом, щоб вона була доступна в усіх місцях
     // Видаляємо емодзі з назви для порівняння
@@ -347,19 +351,26 @@ export class CarProcessor {
       const regulationPartName = regulation.normalizedPartName || "";
 
       let partNameMatches = false;
+      
+      if (isDebugCar && (partName.includes("ТО") || partName.includes("масло"))) {
+          console.log(`[DEBUG PART] Comparing: "${normalizedMappedPartName}" vs "${regulationPartName}"`);
+      }
 
       // Для ТО (масло+фільтри) перевіряємо різні варіанти назви
+      const regPartLower = regulationPartName.toLowerCase();
+      const mappedPartLower = normalizedMappedPartName.toLowerCase();
+      
       if (
-        normalizedMappedPartName.includes("ТО") &&
-        (normalizedMappedPartName.includes("масло") ||
-          normalizedMappedPartName.includes("фільтр"))
+        (mappedPartLower.includes("то") || mappedPartLower.includes("to")) &&
+        (mappedPartLower.includes("масло") ||
+          mappedPartLower.includes("фільтр") || mappedPartLower.includes("фильтр"))
       ) {
         partNameMatches =
-          (regulationPartName.includes("ТО") &&
-            (regulationPartName.includes("масло") ||
-              regulationPartName.includes("фільтр"))) ||
-          regulationPartName === "ТО" ||
-          regulationPartName === "ТО (масло+фільтри)";
+          ((regPartLower.includes("то") || regPartLower.includes("to")) &&
+            (regPartLower.includes("масло") ||
+              regPartLower.includes("фільтр") || regPartLower.includes("фильтр"))) ||
+          regPartLower === "то" || regPartLower === "to" ||
+          regPartLower.includes("то (масло+фільтри)") || regPartLower.includes("to (масло+фільтри)");
       }
       // Для Комп'ютерної діагностики перевіряємо обидва варіанти назви
       else if (
@@ -412,8 +423,9 @@ export class CarProcessor {
           (regulationPartName.includes("профілактика") &&
             regulationPartName.includes("супорт"));
       } else {
-        // Для інших деталей - точне порівняння
-        partNameMatches = regulationPartName === normalizedMappedPartName;
+        // Для інших деталей - точне порівняння з нормалізацією
+        const normalizeForMatch = (s) => s.toLowerCase().replace(/о/g, 'o').replace(/а/g, 'a').replace(/е/g, 'e').replace(/с/g, 'c').replace(/\s+/g, '');
+        partNameMatches = normalizeForMatch(regulationPartName) === normalizeForMatch(normalizedMappedPartName);
       }
 
       if (!partNameMatches) {
@@ -444,6 +456,7 @@ export class CarProcessor {
         }
         
         if (regulation.brandRegex && !regulation.brandRegex.test(model)) {
+          if (isDebugCar) console.log(`    FAIL: Brand mismatch (${regulation.brandPattern} vs ${model})`);
           continue;
         }
       }
@@ -463,15 +476,24 @@ export class CarProcessor {
         }
         
         if (regulation.modelRegex && !regulation.modelRegex.test(model)) {
+          if (isDebugCar) console.log(`    FAIL: Model mismatch (${regulation.modelPattern} vs ${model})`);
           continue;
         }
       }
 
+      if (isDebugCar) {
+          console.log(`  Checking regulation: ${regulation.brandPattern} | ${regulation.modelPattern} | ${regulation.partName}`);
+          console.log(`    Part match: ${partNameMatches}`);
+          console.log(`    Year range: ${regulation.yearFrom}-${regulation.yearTo} (Car: ${carYear})`);
+      }
+
       // Перевіряємо рік випуску авто
       if (carYear < regulation.yearFrom || carYear > regulation.yearTo) {
+        if (isDebugCar) console.log(`    FAIL: Year mismatch`);
         continue;
       }
 
+      if (isDebugCar) console.log(`    SUCCESS: Regulation matched!`);
       matchingRegulations.push(regulation);
     }
 

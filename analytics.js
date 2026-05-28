@@ -43,7 +43,9 @@ class AnalyticsApp {
    * Утиліта для взаємодії з воркером через Promises
    */
   callWorker(type, data) {
-    this.toggleProcessingOverlay(true);
+    if (!this.isBackgroundUpdate) {
+      this.toggleProcessingOverlay(true);
+    }
     return new Promise((resolve, reject) => {
       const handler = (e) => {
         if (e.data.type === `${type}_SUCCESS`) {
@@ -101,7 +103,7 @@ class AnalyticsApp {
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data && event.data.type === 'BACKGROUND_UPDATE_TRIGGERED') {
           console.log("📥 Background update triggered from SW, refreshing analytics...");
-          this.loadData(true);
+          this.loadData(true, true);
         }
       });
     }
@@ -114,7 +116,7 @@ class AnalyticsApp {
     window.addEventListener('online', () => {
       console.log('📶 Підключення до інтернету відновлено');
       this.updateOfflineUI(false);
-      this.loadData(true);
+      this.loadData(true, true);
     });
 
     await this.loadData();
@@ -202,11 +204,13 @@ class AnalyticsApp {
   }
 
   updateLoadingProgress(percent) {
+    if (this.isBackgroundUpdate) return;
     const bar = document.getElementById("loading-bar");
     if (bar) bar.style.width = percent + "%";
   }
 
   hideLoading() {
+    if (this.isBackgroundUpdate) return;
     const loadingScreen = document.getElementById("loading-screen");
     const mainInterface = document.getElementById("main-interface");
     if (loadingScreen && !loadingScreen.classList.contains("hidden")) {
@@ -220,7 +224,8 @@ class AnalyticsApp {
     }
   }
 
-  async loadData(forceRefresh = false) {
+  async loadData(forceRefresh = false, isBackground = false) {
+    this.isBackgroundUpdate = isBackground;
     try {
       this.updateLoadingProgress(20);
 
@@ -264,7 +269,11 @@ class AnalyticsApp {
       
     } catch (error) {
       console.error("❌ Помилка завантаження даних:", error);
-      this.showErrorMessage("Помилка завантаження даних: " + error.message);
+      if (!this.isBackgroundUpdate) {
+        this.showErrorMessage("Помилка завантаження даних: " + error.message);
+      }
+    } finally {
+      this.isBackgroundUpdate = false;
     }
   }
 

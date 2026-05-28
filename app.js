@@ -175,10 +175,10 @@ class CarAnalyticsApp {
     window.addEventListener('online', () => {
       console.log('📶 Підключення до інтернету відновлено');
       if (typeof this.showNotification === 'function') {
-        this.showNotification("Підключення відновлено! Оновлюємо дані...", "success");
+        this.showNotification("Підключення відновлено! Оновлення в процесі...", "success");
       }
       this.updateOfflineUI(false);
-      this.refreshData(true);
+      this.refreshData(true, true);
     });
 
     // Обслуговування повідомлень від Service Worker
@@ -186,7 +186,7 @@ class CarAnalyticsApp {
       navigator.serviceWorker.addEventListener("message", (event) => {
         if (event.data && event.data.type === "BACKGROUND_UPDATE_TRIGGERED") {
           console.log("📥 Background update triggered from SW, refreshing data...");
-          this.refreshData(false);
+          this.refreshData(true, true);
         }
       });
     }
@@ -228,6 +228,7 @@ class CarAnalyticsApp {
 
   // === ЗАВАНТАЖЕННЯ ДАНИХ ===
   updateLoadingProgress(percent) {
+    if (this.isBackgroundUpdate) return;
     const bar = document.getElementById("loading-bar");
     if (bar) {
       bar.style.width = `${percent}%`;
@@ -235,6 +236,7 @@ class CarAnalyticsApp {
   }
 
   hideLoading() {
+    if (this.isBackgroundUpdate) return;
     const loadingScreen = document.getElementById("loading-screen");
     const mainInterface = document.getElementById("main-interface");
     if (loadingScreen && !loadingScreen.classList.contains("hidden")) {
@@ -269,11 +271,13 @@ class CarAnalyticsApp {
           this.processedCars = this.appData.processedCars;
         }
         this.updateCacheInfo();
-        this.render();
-
-        const lastUpdatedEl = document.getElementById("last-updated");
-        if (lastUpdatedEl && !lastUpdatedEl.innerHTML.includes("badge")) {
-          lastUpdatedEl.innerHTML += ` <span class="badge" style="background:var(--warning-color,#fbbf24);color:#000;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">КЕШ</span>`;
+        
+        if (!this.isBackgroundUpdate) {
+          this.render();
+          const lastUpdatedEl = document.getElementById("last-updated");
+          if (lastUpdatedEl && !lastUpdatedEl.innerHTML.includes("badge")) {
+            lastUpdatedEl.innerHTML += ` <span class="badge" style="background:var(--warning-color,#fbbf24);color:#000;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-left:8px;">КЕШ</span>`;
+          }
         }
       }
 
@@ -320,11 +324,15 @@ class CarAnalyticsApp {
         }, 50);
       } else {
         await this.fetchDataFromAPI();
-        this.render();
+        if (!this.isBackgroundUpdate) {
+          this.render();
+        }
       }
     } catch (error) {
       console.error("❌ Помилка завантаження даних:", error);
-      this.showError(`Помилка завантаження: ${error.message}`);
+      if (!this.isBackgroundUpdate) {
+        this.showError(`Помилка завантаження: ${error.message}`);
+      }
     }
   }
 
@@ -427,6 +435,10 @@ class CarAnalyticsApp {
 
     this.updateLoadingProgress(60);
     this.updateLoadingProgress(70);
+    
+    // Зберігаємо поточні оброблені автомобілі, щоб не скидати їх у null при незмінних даних
+    const currentProcessed = this.processedCars;
+    
     this.processData(
       scheduleData,
       historyData,
@@ -447,8 +459,34 @@ class CarAnalyticsApp {
     const newDataStr = getComparableData(this.appData);
     const isDataChanged = oldDataStr !== newDataStr;
 
+    if (!isDataChanged) {
+      // Дані не змінилися, відновлюємо збережені оброблені автомобілі
+      this.processedCars = currentProcessed;
+    } else {
+      // Дані змінилися, відразу запускаємо обробку через воркер у фоні
+      try {
+        console.log("⚙️ Дані змінилися, виконуємо попередню обробку автомобілів через Worker...");
+        this.processedCars = await this.callWorker('PROCESS_CARS', {
+          appData: this.appData,
+          maintenanceRegulations: this.maintenanceRegulations
+        });
+      } catch (e) {
+        console.error("❌ Помилка воркера при фоновій обробці, використовуємо головний потік:", e);
+        this.processedCars = CarProcessor.processCarData(
+          this.appData,
+          undefined,
+          undefined,
+          this.maintenanceRegulations
+        );
+      }
+      this.filteredCars = null;
+    }
+
     this.updateLoadingProgress(80);
-    this.cacheData(this.appData);
+    this.cacheData({
+      ...this.appData,
+      processedCars: this.processedCars
+    });
     this.updateCacheInfo();
 
     return isDataChanged;
@@ -547,8 +585,8 @@ class CarAnalyticsApp {
 
     const firstRefreshDelay = calculateTimeUntilRefresh();
     setTimeout(() => {
-      this.refreshData();
-      setInterval(() => this.refreshData(), 24 * 60 * 60 * 1000);
+      this.refreshData(false, true).catch(err => console.warn("Auto refresh failed:", err));
+      setInterval(() => this.refreshData(false, true).catch(err => console.warn("Auto refresh failed:", err)), 24 * 60 * 60 * 1000);
     }, firstRefreshDelay);
   }
 
@@ -5604,26 +5642,39 @@ class CarAnalyticsApp {
   }
 
   // === ОНОВЛЕННЯ ТА ПОВІДОМЛЕННЯ ===
-  async refreshData(force = false) {
-    console.log("🔄 Оновлення даних...", force ? "(примусове)" : "");
-    this.showNotification("Оновлення даних...", "info");
+  async refreshData(force = false, isBackground = false) {
+    console.log("🔄 Оновлення даних...", force ? "(примусове)" : "", isBackground ? "(у фоновому режимі)" : "");
+    if (!isBackground) {
+      this.showNotification("Оновлення даних...", "info");
+    }
+
+    this.isBackgroundUpdate = isBackground;
 
     try {
-      // Очищаємо оброблені дані, щоб вони перерахувалися
-      this.processedCars = null;
-      this.filteredCars = null;
+      // Очищаємо оброблені дані, тільки якщо це НЕ фонове оновлення,
+      // щоб користувач не бачив порожній екран або затримку при фоновому оновленні
+      if (force && !isBackground) {
+        this.processedCars = null;
+        this.filteredCars = null;
+      }
 
       // Викликаємо loadData з параметром примусового оновлення
-      await this.loadData(true);
+      await this.loadData(force);
 
-      this.showNotification("Дані успішно оновлено", "success");
+      if (!isBackground) {
+        this.showNotification("Дані успішно оновлено", "success");
+      }
       console.log("✅ Дані оновлено");
     } catch (error) {
       console.error("❌ Помилка оновлення:", error);
-      this.showNotification(
-        "Помилка оновлення даних: " + error.message,
-        "error",
-      );
+      if (!isBackground) {
+        this.showNotification(
+          "Помилка оновлення даних: " + error.message,
+          "error",
+        );
+      }
+    } finally {
+      this.isBackgroundUpdate = false;
     }
   }
 

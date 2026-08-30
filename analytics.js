@@ -1164,7 +1164,7 @@ class AnalyticsApp {
       if (mileageDiff <= 0) return 0;
 
       const avgMileagePerWorkingDay = mileageDiff / workingDays;
-      return avgMileagePerWorkingDay * 22; // ~22 робочих дні на місяць (Пн-Пт)
+      return avgMileagePerWorkingDay * 20; // ~20 робочих днів на місяць (Пн-Пт, враховуючи резерв на простій/ремонт)
     }
 
     // Для поточного року або коли рік не вибрано, використовуємо 5.5 місяців
@@ -1199,7 +1199,7 @@ class AnalyticsApp {
       if (mileageDiff <= 0) return 1000;
 
       const avgMileagePerWorkingDay = mileageDiff / workingDays;
-      return avgMileagePerWorkingDay * 22;
+      return avgMileagePerWorkingDay * 20;
     }
 
     // Сортуємо записи за датою
@@ -1220,7 +1220,7 @@ class AnalyticsApp {
     if (mileageDiff <= 0) return 1000;
 
     const avgMileagePerWorkingDay = mileageDiff / workingDays;
-    return avgMileagePerWorkingDay * 22;
+    return avgMileagePerWorkingDay * 20;
   }
 
   calculateCarAgeMonths(car) {
@@ -1273,7 +1273,7 @@ class AnalyticsApp {
     cars.forEach(car => {
       const monthly = this.getAverageMonthlyMileage(car, selectedYear);
       sumMonthly += monthly;
-      sumDaily += (monthly / 22);
+      sumDaily += (monthly / 20);
       sumYearly += (monthly * 12);
       sumTotal += (car.currentMileage || 0);
 

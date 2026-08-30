@@ -2438,7 +2438,7 @@ class CarAnalyticsApp {
   }
 
   // Отримати середній місячний пробіг (індивідуально для кожного авто)
-  // Підраховує кількість робочих днів (понеділок-субота) між двома датами
+  // Підраховує кількість робочих днів (понеділок-п'ятниця) між двома датами
   countWorkingDays(startDate, endDate) {
     if (!startDate || !endDate) return 0;
 
@@ -2450,8 +2450,8 @@ class CarAnalyticsApp {
 
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay(); // 0 = неділя, 1 = понеділок, ..., 6 = субота
-      // Враховуємо тільки дні з понеділка (1) по суботу (6)
-      if (dayOfWeek >= 1 && dayOfWeek <= 6) {
+      // Враховуємо тільки дні з понеділка (1) по п'ятницю (5)
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
         workingDays++;
       }
       currentDate.setDate(currentDate.getDate() + 1);
@@ -2460,7 +2460,7 @@ class CarAnalyticsApp {
     return workingDays;
   }
 
-  // Розраховується за останні 5-6 місяців до сьогоднішнього дня, враховуючи тільки робочі дні (понеділок-субота)
+  // Розраховується за останні 5-6 місяців до сьогоднішнього дня, враховуючи тільки робочі дні (понеділок-п'ятниця)
   getAverageMonthlyMileage(car) {
     if (!car || !car.history || car.history.length < 2) return 1000; // За замовчуванням
 
@@ -2497,16 +2497,16 @@ class CarAnalyticsApp {
 
       if (!firstDate || !lastDate) return 1000;
 
-      // Підраховуємо робочі дні (понеділок-субота)
+      // Підраховуємо робочі дні (понеділок-п'ятниця)
       const workingDays = this.countWorkingDays(firstDate, lastDate);
       if (workingDays <= 0) return 1000;
 
       const mileageDiff = lastRecord.mileage - firstRecord.mileage;
       if (mileageDiff <= 0) return 1000;
 
-      // Розраховуємо середній пробіг на робочий день, потім множимо на середню кількість робочих днів на місяць (26 днів)
+      // Розраховуємо середній пробіг на робочий день, потім множимо на середню кількість робочих днів на місяць (20 днів)
       const avgMileagePerWorkingDay = mileageDiff / workingDays;
-      const monthlyMileage = avgMileagePerWorkingDay * 26; // ~26 робочих днів на місяць (6 днів * 4.33 тижні)
+      const monthlyMileage = avgMileagePerWorkingDay * 20; // ~20 робочих днів на місяць
       return monthlyMileage > 0 ? monthlyMileage : 1000;
     }
 
@@ -2528,16 +2528,16 @@ class CarAnalyticsApp {
 
     if (!firstDate || !endDate) return 1000;
 
-    // Підраховуємо робочі дні (понеділок-субота)
+    // Підраховуємо робочі дні (понеділок-п'ятниця)
     const workingDays = this.countWorkingDays(firstDate, endDate);
     if (workingDays <= 0) return 1000;
 
     const mileageDiff = lastRecord.mileage - firstRecord.mileage;
     if (mileageDiff <= 0) return 1000;
 
-    // Розраховуємо середній пробіг на робочий день, потім множимо на середню кількість робочих днів на місяць (26 днів)
+    // Розраховуємо середній пробіг на робочий день, потім множимо на середню кількість робочих днів на місяць (20 днів)
     const avgMileagePerWorkingDay = mileageDiff / workingDays;
-    const monthlyMileage = avgMileagePerWorkingDay * 26; // ~26 робочих днів на місяць (6 днів * 4.33 тижні)
+    const monthlyMileage = avgMileagePerWorkingDay * 20; // ~20 робочих днів на місяць
     return monthlyMileage > 0 ? monthlyMileage : 1000;
   }
 
@@ -3115,7 +3115,7 @@ class CarAnalyticsApp {
 
     // Розраховуємо метрики для шапки
     const avgMonthlyMileage = this.getAverageMonthlyMileage(car);
-    const avgDailyMileage = Math.round(avgMonthlyMileage / 30);
+    const avgDailyMileage = Math.round(avgMonthlyMileage / 20);
     const avgYearlyMileage = Math.round(avgMonthlyMileage * 12);
     const carAgeMonths = this.calculateCarAgeMonths(car);
 
@@ -4675,7 +4675,7 @@ class CarAnalyticsApp {
   // === НОВІ ФУНКЦІЇ: СЕРЕДНІЙ ПРОБІГ В ШАПЦІ ===
   generateMileageStatsInline(car) {
     const avgMonthlyMileage = this.getAverageMonthlyMileage(car);
-    const avgDailyMileage = Math.round(avgMonthlyMileage / 30);
+    const avgDailyMileage = Math.round(avgMonthlyMileage / 20);
     const avgWeeklyMileage = Math.round(avgMonthlyMileage / 4.33);
     const avgYearlyMileage = Math.round(avgMonthlyMileage * 12);
 
@@ -4706,7 +4706,7 @@ class CarAnalyticsApp {
 
   generateMileageStatsHeader(car) {
     const avgMonthlyMileage = this.getAverageMonthlyMileage(car);
-    const avgDailyMileage = Math.round(avgMonthlyMileage / 30);
+    const avgDailyMileage = Math.round(avgMonthlyMileage / 20);
     const avgWeeklyMileage = Math.round(avgMonthlyMileage / 4.33);
     const avgYearlyMileage = Math.round(avgMonthlyMileage * 12);
 

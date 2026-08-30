@@ -201,7 +201,7 @@ export class FinancialForecaster {
       if (workingDays <= 0) return 1000;
 
       const mileageDiff = lastRecord.mileage - firstRecord.mileage;
-      return Math.max(500, (mileageDiff / workingDays) * 26);
+      return Math.max(500, (mileageDiff / workingDays) * 20);
     }
 
     const sortedRecentHistory = [...recentHistory].sort((a, b) => {
@@ -221,11 +221,11 @@ export class FinancialForecaster {
     if (workingDays <= 0) return 1000;
 
     const mileageDiff = lastRecord.mileage - firstRecord.mileage;
-    return Math.max(500, (mileageDiff / workingDays) * 26);
+    return Math.max(500, (mileageDiff / workingDays) * 20);
   }
 
   /**
-   * Підраховує кількість робочих днів (Пн-Сб) — ідентично до app.js
+   * Підраховує кількість робочих днів (Пн-Пт) — ідентично до app.js
    */
   countWorkingDays(startDate, endDate) {
     if (!startDate || !endDate) return 0;
@@ -238,7 +238,7 @@ export class FinancialForecaster {
     const current = new Date(start);
     while (current <= end) {
       const day = current.getDay();
-      if (day >= 1 && day <= 6) workingDays++;
+      if (day >= 1 && day <= 5) workingDays++;
       current.setDate(current.getDate() + 1);
     }
     return workingDays;
